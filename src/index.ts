@@ -3,6 +3,7 @@ import authRoutes from "./routes/authRoutes"
 import dotenv from "dotenv"
 import connectDB from "./configs/db";
 import { errorMiddleware } from "./helper/errorMiddleware";
+import projectRoutes from './routes/projectRoutes'
 
 dotenv.config()
 
@@ -14,6 +15,7 @@ const port = process.env.PORT || 3001
 connectDB()
 
 app.use('/api', authRoutes)
+app.use('/api', projectRoutes)
 
 
 app.use(errorMiddleware)
