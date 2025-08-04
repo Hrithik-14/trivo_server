@@ -4,6 +4,7 @@ import dotenv from "dotenv";
 import connectDB from "./configs/db";
 import authRoutes from "./routes/authRoutes";
 import { errorMiddleware } from "./helper/errorMiddleware";
+import projectRoutes from './routes/projectRoutes'
 
 dotenv.config();
 
@@ -20,7 +21,9 @@ app.use(express.urlencoded({ extended: true }));
 
 connectDB();
 
-app.use('/api', authRoutes);
+app.use('/api', authRoutes)
+app.use('/api', projectRoutes)
+
 
 app.use(errorMiddleware);
 
