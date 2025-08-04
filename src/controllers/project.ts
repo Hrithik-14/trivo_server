@@ -8,19 +8,23 @@ interface ProjectRequestBody {
   endDate: string;
   managerId: string;
   description: string;
-  client:string
+  client:string;
+  clientEmail:string;
+  employeeId:string;
+  role:string;
+  tasks:string
 }
 
-const addProjectController = async (
+export const addAdminProjectController = async (
   req: Request<{}, {}, ProjectRequestBody>,
   res: Response,
   next: NextFunction
 ) => {
   try {
-    const { name, startDate, endDate, managerId, description,client } = req.body;
+    const { name, startDate, endDate, managerId, description,client, clientEmail } = req.body;
 
     // Validate required fields
-    if (!name || !startDate || !endDate || !managerId || !description) {
+    if (!name || !startDate || !endDate || !managerId || !description ||!client || !clientEmail) {
       return res.status(400).json({ message: "All fields are required" });
     }
 
@@ -31,7 +35,8 @@ const addProjectController = async (
       endDate: new Date(endDate),     // Convert string to Date (if your schema expects Date)
       managerId,
       description,
-      client
+      client,
+      clientEmail
     });
 
     // Save the project to the database
@@ -46,4 +51,29 @@ const addProjectController = async (
   }
 };
 
-export default addProjectController;
+export const addManagerProjectController = async(
+    req: Request<{}, {}, ProjectRequestBody>,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const projectId = req.params
+    console.log("id is :", projectId);
+    
+    const {employeeId, role, tasks} = req.body
+    if(!employeeId || !role || !tasks){
+      console.log("all are required");
+    }
+    
+    
+
+    res.status(200).json({
+      message:"completes",
+     
+    })
+
+  } catch (error) {
+    console.log("error is :", error);
+    res.status(404).json({message:"not found"})
+  }
+}
