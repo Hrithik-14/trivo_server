@@ -1,18 +1,33 @@
-import express from "express";
-import { Request,Response } from "express";
-import dotenv from "dotenv"
+import express, { Application } from "express";
+import cors from "cors";
+import dotenv from "dotenv";
+import connectDB from "./configs/db";
+import authRoutes from "./routes/authRoutes";
+import { errorMiddleware } from "./helper/errorMiddleware";
+import projectRoutes from './routes/projectRoutes'
 
-dotenv.config()
+dotenv.config();
 
-const app = express()
+const app: Application = express();
+const port = process.env.PORT;
 
-const port = process.env.PORT || 3001
+app.use(cors({
+    origin: process.env.FRONTEND_URL,
+    credentials: true
+}));
 
-app.get('/api',(req:Request,res:Response)=>{
-    const response :string = "HEllo World"
-    res.send(response)
-})
-app.listen(port, ()=>{
-    console.log(`Server is running at ${port}`);
-})
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
+connectDB();
+
+app.use('/api', authRoutes)
+app.use('/api', projectRoutes)
+
+
+app.use(errorMiddleware);
+
+
+app.listen(port, () => {
+    console.log(`Server is running at http://localhost:${port}`);
+});
