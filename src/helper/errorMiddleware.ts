@@ -21,10 +21,10 @@ export const createError = (status: number, message: string): CustomError => {
     return err;
 };
 
-export const errorHandling = (
-    fn: (req: Request, res: Response, next: NextFunction) => Promise<any>
-    ) => {
-    return (req: Request, res: Response, next: NextFunction) => {
+export const errorHandling = <P = any, ResBody = any, ReqBody = any, ReqQuery = any>(
+    fn: (req: Request<P, ResBody, ReqBody, ReqQuery>, res: Response, next: NextFunction) => Promise<any>
+) => {
+    return (req: Request<P, ResBody, ReqBody, ReqQuery>, res: Response, next: NextFunction) => {
         fn(req, res, next).catch(next);
     };
 };
