@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from "express";
-import Project from "../models/project";
+import Project, { IProject } from "../models/project";
 import mongoose from "mongoose";
 import User from "../models/user";
 import Task from "../models/task";
@@ -15,12 +15,12 @@ interface ProjectRequestBody {
   client: string;
   clientEmail: string;
   role: string;
-  title:string;
+  title: string;
   tasks: {
     title: string;
   };
   projectId: string;
-  isActive:Boolean;
+  isActive: Boolean;
 }
 
 export const addAdminProjectController = async (
@@ -74,25 +74,25 @@ export const addTaskController = async (
   res: Response,
   next: NextFunction
 ) => {
-  try{
-    const {projectId, employeeCode, title } = req.body
+  try {
+    const { projectId, employeeCode, title } = req.body;
 
-    if(!projectId || !employeeCode){
-      res.status(404).json({message:"all are required"})
+    if (!projectId || !employeeCode) {
+      res.status(404).json({ message: "all are required" });
     }
-    const addTask =new Task({
+    const addTask = new Task({
       projectId,
-      assignedTo:employeeCode,
-      title
-    })
+      assignedTo: employeeCode,
+      title,
+    });
 
-    await addTask.save()
+    await addTask.save();
     res.status(200).json({
-      message:"completed",
-      status:"success",
-      addTask
-    })
-  }catch(error){
+      message: "completed",
+      status: "success",
+      addTask,
+    });
+  } catch (error) {
     console.log("Error is the powerfull toola : ", error);
   }
 };
@@ -109,8 +109,13 @@ export const addManagerProjectController = async (
       return res.status(400).json({ message: "All fields are required" });
     }
 
-    if (!mongoose.isValidObjectId(projectId) || !mongoose.isValidObjectId(employeeCode)) {
-      return res.status(400).json({ message: "Invalid projectId or employeeCode" });
+    if (
+      !mongoose.isValidObjectId(projectId) ||
+      !mongoose.isValidObjectId(employeeCode)
+    ) {
+      return res
+        .status(400)
+        .json({ message: "Invalid projectId or employeeCode" });
     }
 
     const project = await Project.findById(projectId);
@@ -121,7 +126,7 @@ export const addManagerProjectController = async (
 
     const employeeId = new mongoose.Types.ObjectId(employeeCode);
 
-    if (!project.members.some(member => member.equals(employeeId))) {
+    if (!project.members.some((member) => member.equals(employeeId))) {
       project.members.push(employeeId);
     }
 
@@ -131,8 +136,8 @@ export const addManagerProjectController = async (
     });
 
     const newTaskIds = employeeTasks
-      .map(task => task._id)
-      .filter(taskId => !project.tasks.some(t => t.equals(taskId))); 
+      .map((task) => task._id)
+      .filter((taskId) => !project.tasks.some((t) => t.equals(taskId)));
 
     project.tasks.push(...newTaskIds);
 
@@ -146,7 +151,7 @@ export const addManagerProjectController = async (
     console.error("Error in addManagerProjectController:", error);
     res.status(500).json({ message: "Internal server error" });
   }
-}
+};
 
 export const toggleActiveController = async (
   req: Request,
@@ -158,7 +163,7 @@ export const toggleActiveController = async (
     const { _id } = req.params;
 
     if (!mongoose.isValidObjectId(_id)) {
-      throw createError(400, 'Invalid project ID');
+      throw createError(400, "Invalid project ID");
     }
 
     const updatedProject = await Project.findByIdAndUpdate(
@@ -168,12 +173,12 @@ export const toggleActiveController = async (
     );
 
     if (!updatedProject) {
-      throw createError(404, 'Project not found');
+      throw createError(404, "Project not found");
     }
 
     res.status(200).json({
-      message: 'Project active status updated successfully',
-      status: 'success',
+      message: "Project active status updated successfully",
+      status: "success",
       data: updatedProject,
     });
   } catch (error) {
@@ -204,25 +209,38 @@ export const getAllProject = async (
     })
 }
 
-// export const getProjectByManager = async (
-//   req: Request<{ _id: string }, {}, ProjectRequestBody>,
-//   res: Response,
-//   next: NextFunction
-// ): Promise<void> => {
-//   try{
-//     const id = req.body
 
-//     const project = await Project.find({managerId:_id})
-//     const managerProject = []
-//     if(project === id){
-//     managerProject.push(project)
-//     }
-    
-//   }catch(error){
-//     console.log("error is :", error);
-//     next(error)
-//   }
-// }
+export const getProjectByManager = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    // Validate input
+    const { id } = req.body;
+    if (!id || typeof id !== 'string') {
+      throw createError(400, 'Invalid or missing manager ID');
+    }
+
+    // Find projects by managerId
+    const projects: IProject[] = await Project.find({ managerId: id });
+
+    // Check if projects exist
+    if (projects.length === 0) {
+      throw createError(404, 'No projects found for this manager');
+    }
+
+    // Send response
+    res.status(200).json({
+      message: 'Projects retrieved successfully',
+      status: 'success',
+      projects,
+    });
+  } catch (error) {
+    console.error('Error fetching projects by manager:', error);
+    next(error);
+  }
+};
 
 export const getProjectById = async (
   req: Request,
@@ -245,6 +263,38 @@ export const getProjectById = async (
 
     res.status(200).json(formattedProject);
   }catch(error){
+
+
+export const projectProgressController = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body;
+    if(!id){
+      throw createError(404,"project not found")
+    }
+    if(!status){
+      throw createError(404,"status not found")
+    }
+
+    const updatedStatus = await Project.findByIdAndUpdate(
+      id,
+      {status},
+      {new:true}
+    )
+    if(!updatedStatus){
+      throw createError(404,"status not found")
+    }
+
+    res.status(200).json({
+      message:"status updated successfully",
+      status:"success",
+      updatedStatus
+    })
+  } catch (error) {
     next(error)
   }
-}
+};
