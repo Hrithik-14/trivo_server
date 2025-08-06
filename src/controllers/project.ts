@@ -1,7 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import Project from "../models/project";
 
-// Define interface for request body
 interface ProjectRequestBody {
   name: string;
   startDate: string;
