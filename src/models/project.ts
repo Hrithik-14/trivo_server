@@ -2,10 +2,10 @@ import mongoose from "mongoose";
 
 const projectSchema = new mongoose.Schema({
   name: { type: String, required: true },
-  employeeId:{type:String},
   description: { type: String },
   startDate: { type: Date, required: true },
   endDate: { type: Date },
+  isActive: {type: Boolean},
   managerId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "User",
