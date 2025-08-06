@@ -15,6 +15,7 @@ export const searchUsers = async (req: Request, res: Response) => {
     filter.role = role;
   }
 
+
   const users = await User.find(filter);
   res.json({ users });
 };
@@ -34,3 +35,4 @@ export const searchProject = async (req: Request, res: Response) => {
   const projects = await Project.find(filter);
   res.json({projects})
 };
+

@@ -12,16 +12,31 @@ export const createPayslips = async (req: Request, res: Response) => {
 
 
 export const getPayslips = async (req: Request, res: Response) => {
-    const payslips = await Payslip.find()
-    const payslipsWithImages = await Promise.all(
-        payslips.map(async (payslip) => {
-        const user = await User.findOne({ employeeCode: payslip.employeeCode }).select('profileImage');
-            return {
-                ...payslip.toObject(),
-                profileImage: user?.profileImage || null,
-            };
-        })
-    );
+        const page = parseInt(req.query.page as string) || 1;
+        const limit = parseInt(req.query.limit as string) || 10;
+        const skip = (page - 1) * limit;
 
-    res.json(payslipsWithImages);
+        const total = await Payslip.countDocuments();
+
+        const payslips = await Payslip.find()
+            .sort({ createdAt: -1 })
+            .skip(skip)
+            .limit(limit);
+
+        const payslipsWithImages = await Promise.all(
+            payslips.map(async (payslip) => {
+                const user = await User.findOne({ employeeCode: payslip.employeeCode }).select('profileImage');
+                return {
+                    ...payslip.toObject(),
+                    profileImage: user?.profileImage || null,
+                };
+            })
+        );
+
+        res.json({
+            total,
+            page,
+            totalPages: Math.ceil(total / limit),
+            data: payslipsWithImages
+        });
 }
