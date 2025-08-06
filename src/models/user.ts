@@ -34,7 +34,7 @@ const userSchema = new Schema<IUser>(
     name: { type: String },
     email: { type: String, unique: true, required: true },
     employeeCode: { type: String },
-    password: { type: String, required: true },
+    password: { type: String },
     role: {
       type: String,
       default: 'employee',

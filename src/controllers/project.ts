@@ -263,6 +263,9 @@ export const getProjectById = async (
 
     res.status(200).json(formattedProject);
   }catch(error){
+    next(error)
+  }
+}
 
 
 export const projectProgressController = async (
