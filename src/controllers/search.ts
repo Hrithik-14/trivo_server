@@ -16,3 +16,8 @@ export const searchUsers = async (req: Request, res: Response) => {
     const users = await User.find(filter);
     res.json({ users });
 };
+
+
+export const searchProject = async (req: Request, res: Response) => {
+    
+}
