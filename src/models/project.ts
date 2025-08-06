@@ -24,7 +24,7 @@ const projectSchema = new mongoose.Schema({
     },
   ],
   client: { type: String, required: true },
-  clientEmail: { type: String, match: /.+\@.+\..+/ }, 
+  clientEmail: { type: String, match: /.+\@.+\..+/ },
 });
 
 const Project = mongoose.model("Project", projectSchema);
