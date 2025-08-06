@@ -184,7 +184,13 @@ export const setPassword = async (req: Request, res: Response, next: NextFunctio
         user.password = hashedPassword;
         await user.save();
 
-        res.status(200).json({ message: 'Password set successfully' });
+        // res.status(200).json({ message: 'Password set successfully' });
+        res.status(200).json({
+  message: 'Password set successfully',
+  name: user.name,
+  employeeCode: user.employeeCode
+});
+
 };
 
 
@@ -237,3 +243,4 @@ export const loginUser = async (req: Request, res: Response, next: NextFunction)
             }
         });
 };
+
