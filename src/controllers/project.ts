@@ -213,21 +213,17 @@ export const getProjectByManager = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    // Validate input
     const { id } = req.body;
     if (!id || typeof id !== 'string') {
       throw createError(400, 'Invalid or missing manager ID');
     }
 
-    // Find projects by managerId
     const projects: IProject[] = await Project.find({ managerId: id });
 
-    // Check if projects exist
     if (projects.length === 0) {
       throw createError(404, 'No projects found for this manager');
     }
 
-    // Send response
     res.status(200).json({
       message: 'Projects retrieved successfully',
       status: 'success',

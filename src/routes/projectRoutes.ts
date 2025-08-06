@@ -8,7 +8,6 @@ import {
   getProjectById,
   getProjectByManager,
   projectProgressController,
-  // getProjectByManager,
   toggleActiveController,
 } from "../controllers/project";
 
