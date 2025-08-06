@@ -1,9 +1,8 @@
 import mongoose from "mongoose";
 
 const taskSchema = new mongoose.Schema({
-  id: { type: String, required: true },
   title: { type: String, required: true },
-  status: { type: String, default:"pending" },
+  status: { type: String, default:"pending", enum:["pending", "completed"] },
   assignedTo: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "User",
