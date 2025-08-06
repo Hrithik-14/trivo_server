@@ -5,6 +5,7 @@ import {
   addManagerProjectController,
   addTaskController,
   getAllProject,
+  getProjectById,
   // getProjectByManager,
   toggleActiveController,
 } from "../controllers/project";
@@ -21,4 +22,5 @@ router
   // .get('/manager/getProjectByManager/:id', errorHandling(getProjectByManager))
   .post("/manager/addTask", errorHandling(addTaskController))
   .patch('/manager/toggleActive/:_id',errorHandling(toggleActiveController))
+  .get('/manager/getProjectById/:id', errorHandling(getProjectById))
 export default router;
