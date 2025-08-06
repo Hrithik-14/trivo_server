@@ -17,6 +17,7 @@ const router = express.Router();
 router
   .post("/admin/addAdminProject", errorHandling(addAdminProjectController))
   .get('/admin/getAllProject', errorHandling(getAllProject))
+
   .post(
     "/manager/addManagerProject",
     errorHandling(addManagerProjectController)
@@ -25,6 +26,7 @@ router
   .post("/manager/addTask", errorHandling(addTaskController))
   .patch('/manager/toggleActive/:_id',errorHandling(toggleActiveController))
   .get('/manager/getProjectById/:id', errorHandling(getProjectById))
-  .patch('/manager/projectProgress/:id', errorHandling(projectProgressController))
+  .patch('/projectProgress/:id', errorHandling(projectProgressController))
+
 
 export default router;

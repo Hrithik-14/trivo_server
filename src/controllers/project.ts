@@ -98,7 +98,7 @@ export const addTaskController = async (
 };
 
 export const addManagerProjectController = async (
-  req: Request<{}, {}, ProjectRequestBody>,
+  req: Request,
   res: Response,
   next: NextFunction
 ) => {
@@ -154,7 +154,7 @@ export const addManagerProjectController = async (
 };
 
 export const toggleActiveController = async (
-  req: Request<{ _id: string }, {}, ProjectRequestBody>,
+  req: Request,
   res: Response,
   next: NextFunction
 ): Promise<void> => {
@@ -187,25 +187,28 @@ export const toggleActiveController = async (
 };
 
 export const getAllProject = async (
-  req: Request<{ _id: string }, {}, ProjectRequestBody>,
+  req: Request,
   res: Response,
   next: NextFunction
 ): Promise<void> => {
-  try {
-    const project = await Project.find();
-    if (!project) {
-      throw createError(404, "projects not found");
+
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 10;
+    const skip = (page - 1) * limit;
+    
+    const total = await Project.countDocuments();
+    const project = await Project.find().populate('members', 'name').sort({ createdAt: -1, _id: -1 }).skip(skip).limit(limit);;
+    if(!project){
+      throw createError(404, "projects not found")
     }
     res.status(200).json({
-      message: "get projects successfully",
-      status: "success",
-      project,
-    });
-  } catch (error) {
-    console.log("error is :", error);
-    next(error);
-  }
-};
+      total,
+      page,
+      totalPages: Math.ceil(total / limit),
+      project
+    })
+}
+
 
 export const getProjectByManager = async (
   req: Request,
@@ -244,22 +247,23 @@ export const getProjectById = async (
   res: Response,
   next: NextFunction
 ): Promise<void> => {
-  try {
-    const { id } = req.params;
-    console.log("id is :", id);
-    const projectId = await Project.findById(id);
-    if (!projectId) {
-      throw createError(404, "project is not found");
-    }
-    res.status(200).json({
-      message: "project get by id successfully",
-      status: "success",
-      projectId,
-    });
-  } catch (error) {
-    next(error);
-  }
-};
+  try{
+    const id = req.params.id;
+    const project = await Project.findById(id)
+      .populate('managerId', 'name')
+      .populate('members', 'name role');
+
+    if (!project) throw createError(404, 'Project not found');
+
+    const formattedProject = {
+      ...project.toObject(),
+      startDate: project.startDate ? new Date(project.startDate).toISOString(): null,
+      endDate: project.endDate ? new Date(project.endDate).toISOString():null,
+    };
+
+    res.status(200).json(formattedProject);
+  }catch(error){
+
 
 export const projectProgressController = async (
   req: Request,
