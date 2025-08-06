@@ -1,6 +1,6 @@
 import express from 'express';
 import { errorHandling } from '../helper/errorMiddleware';
-import { getAllEmployees, getAllEmployeesDetail, getAllManagers, getAllManagersDetail, getAllUsers, getUser, loginUser, registerUser, setPassword } from '../controllers/auth';
+import { getAllEmployees, getAllEmployeesDetail, getAllManagers, getAllManagersDetail, getAllUsers, getUser, loginUser, registerUser, setPassword, updateUser } from '../controllers/auth';
 import { upload } from '../helper/upload';
 
 
@@ -17,5 +17,6 @@ router.get('/managersdeatil', errorHandling(getAllManagersDetail));
 router.get('/employees', errorHandling(getAllEmployees));
 router.get('/employeesdeatil', errorHandling(getAllEmployeesDetail));
 router.get('/users/:id', errorHandling(getUser))
+router.patch('/updateUser/:id', errorHandling(updateUser))
 
 export default router;  

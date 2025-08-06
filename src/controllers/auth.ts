@@ -1,54 +1,76 @@
-import { Request, Response, NextFunction } from 'express';
-import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
-import User from '../models/user';
-import { createError } from '../helper/errorMiddleware';
-import { sendMail } from '../utils/sendMail';
+import { Request, Response, NextFunction } from "express";
+import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
+import User from "../models/user";
+import { createError } from "../helper/errorMiddleware";
+import { sendMail } from "../utils/sendMail";
 
+export const registerUser = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  const {
+    name,
+    email,
+    role,
+    phoneNumber,
+    dateOfBirth,
+    street,
+    city,
+    state,
+    pincode,
+    managerId,
+    designation,
+  } = req.body;
+  const file = req.file;
 
+  if (!file) return next(createError(400, "No file uploaded"));
+  if (!name || !email)
+    return next(createError(400, "Name and email are required"));
 
-export const registerUser = async (req: Request, res: Response, next: NextFunction) => {
-    const { name, email, role, phoneNumber, dateOfBirth, street, city, state, pincode, managerId, designation } = req.body;
-    const file = req.file
+  const existingUser = await User.findOne({ email });
+  if (existingUser) {
+    throw createError(409, "Email already registered");
+  }
 
-    if (!file) return next(createError(400, 'No file uploaded'));
-    if (!name || !email) return next(createError(400, 'Name and email are required'));
-    
+  const allUsers = await User.find();
+  const employeeCode = `TR/${new Date().getFullYear()}/${allUsers.length
+    .toString()
+    .padStart(2, "0")}`;
 
-    const existingUser = await User.findOne({ email });
-    if (existingUser) { throw createError(409, 'Email already registered');}
+  const profileImageUrl = file.path;
 
-    const allUsers = await User.find();
-    const employeeCode = `TR/${new Date().getFullYear()}/${allUsers.length.toString().padStart(2, '0')}`;
+  const user = await User.create({
+    name,
+    email,
+    role,
+    employeeCode,
+    phoneNumber,
+    dateOfBirth,
+    designation,
+    street,
+    city,
+    state,
+    pincode,
+    managerId,
+    profileImage: profileImageUrl,
+    password: null,
+  });
 
-    const profileImageUrl = file.path
+  const token = jwt.sign(
+    { id: user._id, email: user.email },
+    process.env.JWT_SECRET!,
+    { expiresIn: "24h" }
+  );
 
-    const user = await User.create({
-        name,
-        email,
-        role,
-        employeeCode,
-        phoneNumber,
-        dateOfBirth,
-        designation,
-        street,
-        city,
-        state,
-        pincode,
-        managerId,
-        profileImage: profileImageUrl,
-        password: null,
-    });
+  const setPasswordLink = `${process.env.FRONTEND_URL}/set-password?token=${token}`;
+  console.log(token);
 
-    const token = jwt.sign({ id: user._id, email: user.email }, process.env.JWT_SECRET!, { expiresIn: '24h' });
-
-    const setPasswordLink = `${process.env.FRONTEND_URL}/set-password?token=${token}`;
-    console.log(token);
-    
-    await sendMail({
-        to: email,
-        subject: 'Welcome to TRIVO Solutions',
-        html: `
+  await sendMail({
+    to: email,
+    subject: "Welcome to TRIVO Solutions",
+    html: `
         <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 20px; box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1); overflow: hidden;">
                 
                 <!-- Header with Tech gradient -->
@@ -229,13 +251,13 @@ export const registerUser = async (req: Request, res: Response, next: NextFuncti
                     </td>
                 </tr>
             </table>
-        `
-    })
+        `,
+  });
 
-    await sendMail({
-        to: email,
-        subject: 'Set Your Password',
-        html: `
+  await sendMail({
+    to: email,
+    subject: "Set Your Password",
+    html: `
         <table class="w-full max-w-2xl mx-auto bg-white" cellpadding="0" cellspacing="0" style="max-width: 600px; margin: 0 auto;">
         <!-- Header -->
         <tr>
@@ -340,133 +362,196 @@ export const registerUser = async (req: Request, res: Response, next: NextFuncti
                 </table>
             </td>
         </tr>
-    </table>`
-    });
+    </table>`,
+  });
 
-    res.status(201).json({
-        message: 'User registered successfully. Password setup link sent to email.',
-        employeeCode: user.employeeCode,
-    });
+  res.status(201).json({
+    message: "User registered successfully. Password setup link sent to email.",
+    employeeCode: user.employeeCode,
+  });
 };
 
+export const setPassword = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  const { token, password } = req.body;
 
-export const setPassword = async (req: Request, res: Response, next: NextFunction) => {
-    const { token, password } = req.body;
+  if (!token || !password) {
+    return res.status(400).json({ message: "Token and password required" });
+  }
 
-    if (!token || !password) {
-        return res.status(400).json({ message: 'Token and password required' });
-    }
+  const decoded = jwt.verify(token, process.env.JWT_SECRET!) as { id: string };
 
-        const decoded = jwt.verify(token, process.env.JWT_SECRET!) as { id: string };
+  const user = await User.findById(decoded.id);
+  if (!user) {
+    return res.status(404).json({ message: "User not found" });
+  }
 
-        const user = await User.findById(decoded.id);
-        if (!user) {
-            return res.status(404).json({ message: 'User not found' });
-        }
+  const hashedPassword = await bcrypt.hash(password, 10);
+  user.password = hashedPassword;
+  await user.save();
 
-        const hashedPassword = await bcrypt.hash(password, 10);
-        user.password = hashedPassword;
-        await user.save();
-
-        res.status(200).json({ message: 'Password set successfully' });
+  res.status(200).json({ message: "Password set successfully" });
 };
 
+export const loginUser = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  const { identifier, password } = req.body;
+  console.log(req.body);
 
+  if (!identifier || !password) {
+    return next(
+      createError(400, "Email or Employee Code and Password are required")
+    );
+  }
 
-export const loginUser = async (req: Request, res: Response, next: NextFunction) => {
-    const { identifier, password } = req.body;
-    console.log(req.body);
-    
+  const user = await User.findOne({
+    $or: [{ email: identifier }, { employeeCode: identifier }],
+  });
 
-    if (!identifier || !password) {
-        return next(createError(400, 'Email or Employee Code and Password are required'));
-    }
+  if (!user) {
+    return next(createError(404, "User not found"));
+  }
 
-        const user = await User.findOne({
-            $or: [{ email: identifier }, { employeeCode: identifier }]
-        });
+  if (!user.password) {
+    return next(createError(400, "User has no password set"));
+  }
 
-        if (!user) {
-            return next(createError(404, 'User not found'));
-        }
+  const isMatch = await bcrypt.compare(password, user.password);
+  if (!isMatch) {
+    return next(createError(401, "Invalid credentials"));
+  }
 
-        if (!user.password) {
-            return next(createError(400, 'User has no password set'));
-        }
+  if (!process.env.JWT_SECRET) {
+    throw new Error("Missing JWT_SECRET in environment");
+  }
 
-        const isMatch = await bcrypt.compare(password, user.password);
-        if (!isMatch) {
-            return next(createError(401, 'Invalid credentials'));
-        }
+  const token = jwt.sign(
+    { id: user._id, role: user.role, email: user.email },
+    process.env.JWT_SECRET,
+    { expiresIn: "7d" }
+  );
 
-        if (!process.env.JWT_SECRET) {
-            throw new Error('Missing JWT_SECRET in environment');
-        }
-
-        const token = jwt.sign(
-            { id: user._id, role: user.role, email: user.email },
-            process.env.JWT_SECRET,
-            { expiresIn: '7d' }
-        );
-
-        res.status(200).json({
-            message: 'Login successful',
-            token,
-            user: {
-                id: user._id,
-                name: user.name,
-                email: user.email,
-                employeeCode: user.employeeCode,
-                role: user.role,
-            }
-        });
+  res.status(200).json({
+    message: "Login successful",
+    token,
+    user: {
+      id: user._id,
+      name: user.name,
+      email: user.email,
+      employeeCode: user.employeeCode,
+      role: user.role,
+    },
+  });
 };
 
+export const getAllUsers = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  const users = await User.find();
+  res.status(200).json({
+    message: "Users fetched successfully",
+    users,
+  });
+};
 
-export const getAllUsers = async (req: Request, res: Response, next: NextFunction) => {
-    const users = await User.find()
-        res.status(200).json({
-            message: 'Users fetched successfully',
-            users
-    });
-}
+export const getAllManagers = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  const managers = await User.find({ role: "manager" }, { _id: 1, name: 1 });
+  res.status(200).json(managers);
+};
 
+export const getAllManagersDetail = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  const managers = await User.find({ role: "manager" });
+  res.status(200).json(managers);
+};
 
+export const getAllEmployees = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  const managers = await User.find({ role: "employee" }, { _id: 1, name: 1 });
+  res.status(200).json(managers);
+};
 
-export const getAllManagers = async ( req: Request, res: Response, next: NextFunction ) => {
-    const managers = await User.find({ role: 'manager' }, { _id: 1, name: 1 })
-    res.status(200).json(managers)
-}
+export const getAllEmployeesDetail = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  const managers = await User.find({ role: "employee" });
+  res.status(200).json(managers);
+};
 
+export const getUser = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  const { id } = req.params;
+  const user = await User.findById(id);
+  if (!user) return next(createError(404, "Not found"));
+  res.json(user);
+};
 
+export const updateUser = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  const {
+    name,
+    email,
+    role,
+    phoneNumber,
+    dateOfBirth,
+    street,
+    city,
+    state,
+    pincode,
+    managerId,
+    designation,
+  } = req.body;
+  const { id } = req.params;
 
-export const getAllManagersDetail = async ( req: Request, res: Response, next: NextFunction ) => {
-    const managers = await User.find({ role: 'manager' })
-    res.status(200).json(managers)
-}
+  const updatedData = {
+    name,
+    email,
+    role,
+    phoneNumber,
+    dateOfBirth,
+    street,
+    city,
+    state,
+    pincode,
+    managerId,
+    designation,
+  };
 
+  const updatedUser = await User.findByIdAndUpdate(
+    id,
+    updatedData,
+    {new:true}
+  )
 
-
-
-export const getAllEmployees = async ( req: Request, res: Response, next: NextFunction ) => {
-    const managers = await User.find({ role: 'employee' }, { _id: 1, name: 1 })
-    res.status(200).json(managers)
-}
-
-
-
-export const getAllEmployeesDetail = async ( req: Request, res: Response, next: NextFunction ) => {
-    const managers = await User.find({ role: 'employee' })
-    res.status(200).json(managers)
-}
-
-
-
-export const getUser = async (req: Request, res: Response, next: NextFunction) => {
-    const { id } = req.params
-    const user = await User.findById( id )
-    if(!user) return next(createError(404, 'Not found'))
-    res.json(user)
-}
-
-
+  res.status(200).json({
+    message:"updated user successfully",
+    sttus:"success",
+    updatedUser
+  })
+};
