@@ -6,28 +6,22 @@ import { createError } from '../helper/errorMiddleware';
 import { sendMail } from '../utils/sendMail';
 
 
+
 export const registerUser = async (req: Request, res: Response, next: NextFunction) => {
-    const { name, email, role, phoneNumber, dateOfBirth, street, city, state, pincode, managerId } = req.body;
+    const { name, email, role, phoneNumber, dateOfBirth, street, city, state, pincode, managerId, designation } = req.body;
+    const file = req.file
 
-    function generateEmployeeCode(users: any[]): string {
-        const companyCode = 'TR';
-        const year = new Date().getFullYear();
-        const userCount = users.length;
-        const paddedUserCount = userCount.toString().padStart(2, '0');
-        return `${companyCode}/${year}/${paddedUserCount}`;
-    }
-
-    if (!name || !email) {
-        throw createError(400, 'Name and email are required');
-    }
+    if (!file) return next(createError(400, 'No file uploaded'));
+    if (!name || !email) return next(createError(400, 'Name and email are required'));
+    
 
     const existingUser = await User.findOne({ email });
-    if (existingUser) {
-        throw createError(409, 'Email already registered');
-    }
+    if (existingUser) { throw createError(409, 'Email already registered');}
 
     const allUsers = await User.find();
-    const employeeCode = generateEmployeeCode(allUsers);
+    const employeeCode = `TR/${new Date().getFullYear()}/${allUsers.length.toString().padStart(2, '0')}`;
+
+    const profileImageUrl = file.path
 
     const user = await User.create({
         name,
@@ -36,17 +30,207 @@ export const registerUser = async (req: Request, res: Response, next: NextFuncti
         employeeCode,
         phoneNumber,
         dateOfBirth,
+        designation,
         street,
         city,
         state,
         pincode,
         managerId,
+        profileImage: profileImageUrl,
         password: null,
     });
 
     const token = jwt.sign({ id: user._id, email: user.email }, process.env.JWT_SECRET!, { expiresIn: '24h' });
 
     const setPasswordLink = `${process.env.FRONTEND_URL}/set-password?token=${token}`;
+    console.log(token);
+    
+    await sendMail({
+        to: email,
+        subject: 'Welcome to TRIVO Solutions',
+        html: `
+        <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 20px; box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1); overflow: hidden;">
+                
+                <!-- Header with Tech gradient -->
+                <tr>
+                    <td style="background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%); padding: 40px 30px; text-align: center; position: relative;">
+                        <table width="100%" cellpadding="0" cellspacing="0">
+                            <tr>
+                                <td style="text-align: center;">
+                                    <!-- Tech company icon -->
+                                    <div style="background-color: rgba(255,255,255,0.2); width: 80px; height: 80px; border-radius: 50%; margin: 0 auto 20px; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(10px);">
+                                        <img src="/logo_png.png" />
+                                    </div>
+                                    <h1 style="margin: 0; font-size: 32px; color: white; font-weight: 700; text-shadow: 0 2px 4px rgba(0,0,0,0.2);">
+                                        Welcome to TRIVO Solutions!
+                                    </h1>
+                                    <p style="margin: 10px 0 0 0; color: rgba(255,255,255,0.9); font-size: 18px; font-weight: 300;">
+                                        Innovation meets excellence
+                                    </p>
+                                </td>
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
+                
+                <tr>
+                    <td style="padding: 50px 40px; background-color: #ffffff;">
+                        <table width="100%" cellpadding="0" cellspacing="0">
+                            <tr>
+                                <td>
+                                    <h2 style="color: #2c3e50; font-size: 24px; margin: 0 0 20px 0; font-weight: 600;">
+                                        Hello Tech ${name}
+                                    </h2>
+                                    <p style="color: #5a6c7d; font-size: 16px; line-height: 1.6; margin: 0 0 20px 0;">
+                                        Thank you for joining <strong style="color: #667eea;">TRIVO Solutions</strong>. We're excited to have you as part of our innovative tech community and look forward to building the future together!
+                                    </p>
+                                    
+                                    <!-- Feature cards -->
+                                    <table width="100%" cellpadding="0" cellspacing="0" style="margin: 30px 0;">
+                                        <tr>
+                                            <td style="padding: 25px; background: linear-gradient(135deg, #f8faff 0%, #e8f2ff 100%); border-radius: 12px; border-left: 4px solid #667eea;">
+                                                <h3 style="color: #2c3e50; font-size: 18px; margin: 0 0 15px 0; font-weight: 600;">
+                                                    What's next on your journey:
+                                                </h3>
+                                                <table width="100%" cellpadding="0" cellspacing="0">
+                                                    <tr>
+                                                        <td style="padding: 10px 0; color: #5a6c7d; font-size: 15px; line-height: 1.5;">
+                                                            <span style="color: #667eea; font-weight: bold;">💻</span> 
+                                                            <strong>Explore our platform</strong> - Access cutting-edge tools and resources
+                                                        </td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td style="padding: 10px 0; color: #5a6c7d; font-size: 15px; line-height: 1.5;">
+                                                            <span style="color: #667eea; font-weight: bold;">🔧</span> 
+                                                            <strong>Set up your workspace</strong> - Customize your development environment
+                                                        </td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td style="padding: 10px 0; color: #5a6c7d; font-size: 15px; line-height: 1.5;">
+                                                            <span style="color: #667eea; font-weight: bold;">👥</span> 
+                                                            <strong>Join our community</strong> - Connect with fellow developers and innovators
+                                                        </td>
+                                                    </tr>
+                                                    <tr>
+                                                        <td style="padding: 10px 0; color: #5a6c7d; font-size: 15px; line-height: 1.5;">
+                                                            <span style="color: #667eea; font-weight: bold;">📚</span> 
+                                                            <strong>Access documentation</strong> - Get started with our comprehensive guides
+                                                        </td>
+                                                    </tr>
+                                                </table>
+                                            </td>
+                                        </tr>
+                                    </table>
+                                    
+                                    <p style="color: #5a6c7d; font-size: 16px; line-height: 1.6; margin: 30px 0 0 0;">
+                                        Need assistance? Our support team is available 24/7 to help you succeed. Just reply to this email! 💜
+                                    </p>
+                                </td>
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
+                
+                <!-- Stats section -->
+                <tr>
+                    <td style="padding: 40px; background: linear-gradient(135deg, #f8faff 0%, #ffffff 100%);">
+                        <table width="100%" cellpadding="0" cellspacing="0">
+                            <tr>
+                                <td style="text-align: center; padding-bottom: 20px;">
+                                    <h3 style="color: #2c3e50; font-size: 20px; margin: 0 0 25px 0; font-weight: 600;">
+                                        Join thousands of innovators
+                                    </h3>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>
+                                    <table width="100%" cellpadding="0" cellspacing="0">
+                                        <tr>
+                                            <td style="text-align: center; width: 33.33%; padding: 0 10px;">
+                                                <div style="background-color: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05);">
+                                                    <h4 style="color: #667eea; font-size: 28px; margin: 0; font-weight: 700;">10K+</h4>
+                                                    <p style="color: #5a6c7d; font-size: 14px; margin: 5px 0 0 0;">Active Users</p>
+                                                </div>
+                                            </td>
+                                            <td style="text-align: center; width: 33.33%; padding: 0 10px;">
+                                                <div style="background-color: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05);">
+                                                    <h4 style="color: #667eea; font-size: 28px; margin: 0; font-weight: 700;">500+</h4>
+                                                    <p style="color: #5a6c7d; font-size: 14px; margin: 5px 0 0 0;">Projects</p>
+                                                </div>
+                                            </td>
+                                            <td style="text-align: center; width: 33.33%; padding: 0 10px;">
+                                                <div style="background-color: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05);">
+                                                    <h4 style="color: #667eea; font-size: 28px; margin: 0; font-weight: 700;">99.9%</h4>
+                                                    <p style="color: #5a6c7d; font-size: 14px; margin: 5px 0 0 0;">Uptime</p>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    </table>
+                                </td>
+                            </tr>
+                        </tr>
+                    </td>
+                </tr>
+                
+                <!-- Social media section -->
+                <tr>
+                    <td style="padding: 30px 40px; background-color: #f8faff; text-align: center;">
+                        <table width="100%" cellpadding="0" cellspacing="0">
+                            <tr>
+                                <td style="text-align: center; padding-bottom: 20px;">
+                                    <p style="color: #2c3e50; font-size: 16px; margin: 0 0 15px 0; font-weight: 600;">
+                                        Stay connected with TRIVO Solutions
+                                    </p>
+                                    <table cellpadding="0" cellspacing="0" style="margin: 0 auto;">
+                                        <tr>
+                                            <td style="padding: 0 10px;">
+                                                <a href="#" style="display: inline-block; width: 45px; height: 45px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 50%; text-align: center; line-height: 45px; color: white; text-decoration: none; font-size: 18px; box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);">📘</a>
+                                            </td>
+                                            <td style="padding: 0 10px;">
+                                                <a href="#" style="display: inline-block; width: 45px; height: 45px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 50%; text-align: center; line-height: 45px; color: white; text-decoration: none; font-size: 18px; box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);">💼</a>
+                                            </td>
+                                            <td style="padding: 0 10px;">
+                                                <a href="#" style="display: inline-block; width: 45px; height: 45px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 50%; text-align: center; line-height: 45px; color: white; text-decoration: none; font-size: 18px; box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);">🐦</a>
+                                            </td>
+                                            <td style="padding: 0 10px;">
+                                                <a href="#" style="display: inline-block; width: 45px; height: 45px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 50%; text-align: center; line-height: 45px; color: white; text-decoration: none; font-size: 18px; box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);">📧</a>
+                                            </td>
+                                        </tr>
+                                    </table>
+                                </td>
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
+                
+                <!-- Footer -->
+                <tr>
+                    <td style="padding: 30px 40px; background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%); text-align: center; color: #bdc3c7;">
+                        <table width="100%" cellpadding="0" cellspacing="0">
+                            <tr>
+                                <td style="text-align: center; padding-bottom: 15px;">
+                                    <p style="margin: 0; font-size: 14px; line-height: 1.5;">
+                                        © 2025 TRIVO Solutions, All rights reserved.<br>
+                                        <span style="color: #667eea;">Transforming ideas into reality.</span>
+                                    </p>
+                                </td>
+                            </tr>
+                            <tr>
+                                <td style="text-align: center; padding-top: 15px; border-top: 1px solid #495057;">
+                                    <p style="margin: 0; font-size: 12px; color: #95a5a6;">
+                                        You received this email because you signed up for TRIVO Solutions.<br>
+                                        <a href="#" style="color: #667eea; text-decoration: none;">Unsubscribe</a> | 
+                                        <a href="#" style="color: #667eea; text-decoration: none;">Privacy Policy</a> |
+                                        <a href="#" style="color: #667eea; text-decoration: none;">Contact Support</a>
+                                    </p>
+                                </td>
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
+            </table>
+        `
+    })
 
     await sendMail({
         to: email,
@@ -237,3 +421,52 @@ export const loginUser = async (req: Request, res: Response, next: NextFunction)
             }
         });
 };
+
+
+export const getAllUsers = async (req: Request, res: Response, next: NextFunction) => {
+    const users = await User.find()
+        res.status(200).json({
+            message: 'Users fetched successfully',
+            users
+    });
+}
+
+
+
+export const getAllManagers = async ( req: Request, res: Response, next: NextFunction ) => {
+    const managers = await User.find({ role: 'manager' }, { _id: 1, name: 1 })
+    res.status(200).json(managers)
+}
+
+
+
+export const getAllManagersDetail = async ( req: Request, res: Response, next: NextFunction ) => {
+    const managers = await User.find({ role: 'manager' })
+    res.status(200).json(managers)
+}
+
+
+
+
+export const getAllEmployees = async ( req: Request, res: Response, next: NextFunction ) => {
+    const managers = await User.find({ role: 'employee' }, { _id: 1, name: 1 })
+    res.status(200).json(managers)
+}
+
+
+
+export const getAllEmployeesDetail = async ( req: Request, res: Response, next: NextFunction ) => {
+    const managers = await User.find({ role: 'employee' })
+    res.status(200).json(managers)
+}
+
+
+
+export const getUser = async (req: Request, res: Response, next: NextFunction) => {
+    const { id } = req.params
+    const user = await User.findById( id )
+    if(!user) return next(createError(404, 'Not found'))
+    res.json(user)
+}
+
+
