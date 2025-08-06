@@ -6,6 +6,8 @@ import {
   addTaskController,
   getAllProject,
   getProjectById,
+  getProjectByManager,
+  projectProgressController,
   // getProjectByManager,
   toggleActiveController,
 } from "../controllers/project";
@@ -19,8 +21,10 @@ router
     "/manager/addManagerProject",
     errorHandling(addManagerProjectController)
   )
-  // .get('/manager/getProjectByManager/:id', errorHandling(getProjectByManager))
+  .get('/manager/getProjectByManager', errorHandling(getProjectByManager))
   .post("/manager/addTask", errorHandling(addTaskController))
   .patch('/manager/toggleActive/:_id',errorHandling(toggleActiveController))
   .get('/manager/getProjectById/:id', errorHandling(getProjectById))
+  .patch('/manager/projectProgress/:id', errorHandling(projectProgressController))
+
 export default router;
