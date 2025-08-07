@@ -8,7 +8,7 @@ const storage = new CloudinaryStorage({
   params: async (req, file) => {
     return {
       folder: "users",
-      format: path.extname(file.originalname).slice(1), // e.g., 'jpg', 'png'
+      format: path.extname(file.originalname).slice(1), 
       transformation: [{ width: 800, height: 800, crop: "limit" }],
     };
   },
@@ -16,7 +16,7 @@ const storage = new CloudinaryStorage({
 
 export const upload = multer({
   storage,
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+  limits: { fileSize: 5 * 1024 * 1024 }, 
   fileFilter: (req, file, cb) => {
     const filetypes = /jpeg|jpg|png/;
     const extname = filetypes.test(path.extname(file.originalname).toLowerCase());

@@ -10,21 +10,41 @@ import fs  from 'fs';
 
 
 
-export const registerUser = async (req: Request, res: Response, next: NextFunction) => {
-    const { name, email, role, phoneNumber, dateOfBirth, street, city, state, pincode, managerId, designation } = req.body;
-    const file = req.file
+export const registerUser = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  const {
+    name,
+    email,
+    role,
+    phoneNumber,
+    dateOfBirth,
+    street,
+    city,
+    state,
+    pincode,
+    managerId,
+    designation,
+  } = req.body;
+  const file = req.file;
 
-    if (!file) return next(createError(400, 'No file uploaded'));
-    if (!name || !email) return next(createError(400, 'Name and email are required'));
-    
+  if (!file) return next(createError(400, "No file uploaded"));
+  if (!name || !email)
+    return next(createError(400, "Name and email are required"));
 
-    const existingUser = await User.findOne({ email });
-    if (existingUser) { throw createError(409, 'Email already registered');}
+  const existingUser = await User.findOne({ email });
+  if (existingUser) {
+    throw createError(409, "Email already registered");
+  }
 
-    const allUsers = await User.find();
-    const employeeCode = `TR/${new Date().getFullYear()}/${allUsers.length.toString().padStart(2, '0')}`;
+  const allUsers = await User.find();
+  const employeeCode = `TR/${new Date().getFullYear()}/${allUsers.length
+    .toString()
+    .padStart(2, "0")}`;
 
-    const profileImageUrl = file.path
+  const profileImageUrl = file.path;
 
     const user = await User.create({
         name,
@@ -44,7 +64,11 @@ export const registerUser = async (req: Request, res: Response, next: NextFuncti
         password: null,
     });
 
-    const token = jwt.sign({ id: user._id, email: user.email }, process.env.JWT_SECRET!, { expiresIn: '24h' });
+  const token = jwt.sign(
+    { id: user._id, email: user.email },
+    process.env.JWT_SECRET!,
+    { expiresIn: "24h" }
+  );
 
     const setPasswordLink = `${process.env.FRONTEND_URL}/set-password?token=${token}`;
     console.log(token);
@@ -54,7 +78,7 @@ export const registerUser = async (req: Request, res: Response, next: NextFuncti
         subject: 'Welcome to TRIVO Solutions',
         html: `
         <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 20px;  overflow: hidden;">
-                
+   
                 <!-- Header with Tech gradient -->
                 <tr>
                     <td style=" padding: 40px 30px; text-align: center; position: relative;">
@@ -165,13 +189,13 @@ export const registerUser = async (req: Request, res: Response, next: NextFuncti
                     </td>
                 </tr>
             </table>
-        `
-    })
+        `,
+  });
 
-    await sendMail({
-        to: email,
-        subject: 'Set Your Password',
-        html: `
+  await sendMail({
+    to: email,
+    subject: "Set Your Password",
+    html: `
         <table class="w-full max-w-2xl mx-auto bg-white" cellpadding="0" cellspacing="0" style="max-width: 600px; margin: 0 auto;">
         <!-- Header -->
         <tr>
@@ -276,98 +300,105 @@ export const registerUser = async (req: Request, res: Response, next: NextFuncti
                 </table>
             </td>
         </tr>
-    </table>`
-    });
+    </table>`,
+  });
 
-    res.status(201).json({
-        message: 'User registered successfully. Password setup link sent to email.',
-        employeeCode: user.employeeCode,
-    });
+  res.status(201).json({
+    message: "User registered successfully. Password setup link sent to email.",
+    employeeCode: user.employeeCode,
+  });
 };
 
+export const setPassword = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  const { token, password } = req.body;
 
-export const setPassword = async (req: Request, res: Response, next: NextFunction) => {
-    const { token, password } = req.body;
+  if (!token || !password) {
+    return res.status(400).json({ message: "Token and password required" });
+  }
 
-    if (!token || !password) {
-        return res.status(400).json({ message: 'Token and password required' });
-    }
+  const decoded = jwt.verify(token, process.env.JWT_SECRET!) as { id: string };
 
-        const decoded = jwt.verify(token, process.env.JWT_SECRET!) as { id: string };
+  const user = await User.findById(decoded.id);
+  if (!user) {
+    return res.status(404).json({ message: "User not found" });
+  }
 
-        const user = await User.findById(decoded.id);
-        if (!user) {
-            return res.status(404).json({ message: 'User not found' });
-        }
+  const hashedPassword = await bcrypt.hash(password, 10);
+  user.password = hashedPassword;
+  await user.save();
 
-        const hashedPassword = await bcrypt.hash(password, 10);
-        user.password = hashedPassword;
-        await user.save();
-
-        res.status(200).json({ message: 'Password set successfully' });
+  res.status(200).json({ message: "Password set successfully" });
 };
 
+export const loginUser = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  const { identifier, password } = req.body;
+  console.log(req.body);
 
+  if (!identifier || !password) {
+    return next(
+      createError(400, "Email or Employee Code and Password are required")
+    );
+  }
 
-export const loginUser = async (req: Request, res: Response, next: NextFunction) => {
-    const { identifier, password } = req.body;
-    console.log(req.body);
-    
+  const user = await User.findOne({
+    $or: [{ email: identifier }, { employeeCode: identifier }],
+  });
 
-    if (!identifier || !password) {
-        return next(createError(400, 'Email or Employee Code and Password are required'));
-    }
+  if (!user) {
+    return next(createError(404, "User not found"));
+  }
 
-        const user = await User.findOne({
-            $or: [{ email: identifier }, { employeeCode: identifier }]
-        });
+  if (!user.password) {
+    return next(createError(400, "User has no password set"));
+  }
 
-        if (!user) {
-            return next(createError(404, 'User not found'));
-        }
+  const isMatch = await bcrypt.compare(password, user.password);
+  if (!isMatch) {
+    return next(createError(401, "Invalid credentials"));
+  }
 
-        if (!user.password) {
-            return next(createError(400, 'User has no password set'));
-        }
+  if (!process.env.JWT_SECRET) {
+    throw new Error("Missing JWT_SECRET in environment");
+  }
 
-        const isMatch = await bcrypt.compare(password, user.password);
-        if (!isMatch) {
-            return next(createError(401, 'Invalid credentials'));
-        }
+  const token = jwt.sign(
+    { id: user._id, role: user.role, email: user.email },
+    process.env.JWT_SECRET,
+    { expiresIn: "7d" }
+  );
 
-        if (!process.env.JWT_SECRET) {
-            throw new Error('Missing JWT_SECRET in environment');
-        }
-
-        const token = jwt.sign(
-            { id: user._id, role: user.role, email: user.email },
-            process.env.JWT_SECRET,
-            { expiresIn: '7d' }
-        );
-
-        res.status(200).json({
-            message: 'Login successful',
-            token,
-            user: {
-                id: user._id,
-                name: user.name,
-                email: user.email,
-                employeeCode: user.employeeCode,
-                role: user.role,
-            }
-        });
+  res.status(200).json({
+    message: "Login successful",
+    token,
+    user: {
+      id: user._id,
+      name: user.name,
+      email: user.email,
+      employeeCode: user.employeeCode,
+      role: user.role,
+    },
+  });
 };
 
-
-export const getAllUsers = async (req: Request, res: Response, next: NextFunction) => {
-    const users = await User.find()
-        res.status(200).json({
-            message: 'Users fetched successfully',
-            users
-    });
-}
-
-
+export const getAllUsers = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  const users = await User.find();
+  res.status(200).json({
+    message: "Users fetched successfully",
+    users,
+  });
+};
 
 export const getAllManagers = async ( req: Request, res: Response, next: NextFunction ) => {
     const page = parseInt(req.query.page as string) || 1;
