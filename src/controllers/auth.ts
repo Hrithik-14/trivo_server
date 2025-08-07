@@ -53,22 +53,19 @@ export const registerUser = async (req: Request, res: Response, next: NextFuncti
         to: email,
         subject: 'Welcome to TRIVO Solutions',
         html: `
-        <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 20px; box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1); overflow: hidden;">
+        <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 20px;  overflow: hidden;">
                 
                 <!-- Header with Tech gradient -->
                 <tr>
-                    <td style="background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%); padding: 40px 30px; text-align: center; position: relative;">
+                    <td style=" padding: 40px 30px; text-align: center; position: relative;">
                         <table width="100%" cellpadding="0" cellspacing="0">
                             <tr>
                                 <td style="text-align: center;">
-                                    <!-- Tech company icon -->
-                                    <div style="background-color: rgba(255,255,255,0.2); width: 80px; height: 80px; border-radius: 50%; margin: 0 auto 20px; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(10px);">
-                                        <img src="/logo_png.png" />
-                                    </div>
-                                    <h1 style="margin: 0; font-size: 32px; color: white; font-weight: 700; text-shadow: 0 2px 4px rgba(0,0,0,0.2);">
+                                    
+                                    <h1 style="margin: 0; font-size: 32px; font-weight: 700; text-shadow: 0 2px 4px rgba(0,0,0,0.2);">
                                         Welcome to TRIVO Solutions!
                                     </h1>
-                                    <p style="margin: 10px 0 0 0; color: rgba(255,255,255,0.9); font-size: 18px; font-weight: 300;">
+                                    <p style="margin: 10px 0 0 0; font-size: 18px; font-weight: 300;">
                                         Innovation meets excellence
                                     </p>
                                 </td>
@@ -89,45 +86,10 @@ export const registerUser = async (req: Request, res: Response, next: NextFuncti
                                         Thank you for joining <strong style="color: #667eea;">TRIVO Solutions</strong>. We're excited to have you as part of our innovative tech community and look forward to building the future together!
                                     </p>
                                     
-                                    <!-- Feature cards -->
-                                    <table width="100%" cellpadding="0" cellspacing="0" style="margin: 30px 0;">
-                                        <tr>
-                                            <td style="padding: 25px; background: linear-gradient(135deg, #f8faff 0%, #e8f2ff 100%); border-radius: 12px; border-left: 4px solid #667eea;">
-                                                <h3 style="color: #2c3e50; font-size: 18px; margin: 0 0 15px 0; font-weight: 600;">
-                                                    What's next on your journey:
-                                                </h3>
-                                                <table width="100%" cellpadding="0" cellspacing="0">
-                                                    <tr>
-                                                        <td style="padding: 10px 0; color: #5a6c7d; font-size: 15px; line-height: 1.5;">
-                                                            <span style="color: #667eea; font-weight: bold;">💻</span> 
-                                                            <strong>Explore our platform</strong> - Access cutting-edge tools and resources
-                                                        </td>
-                                                    </tr>
-                                                    <tr>
-                                                        <td style="padding: 10px 0; color: #5a6c7d; font-size: 15px; line-height: 1.5;">
-                                                            <span style="color: #667eea; font-weight: bold;">🔧</span> 
-                                                            <strong>Set up your workspace</strong> - Customize your development environment
-                                                        </td>
-                                                    </tr>
-                                                    <tr>
-                                                        <td style="padding: 10px 0; color: #5a6c7d; font-size: 15px; line-height: 1.5;">
-                                                            <span style="color: #667eea; font-weight: bold;">👥</span> 
-                                                            <strong>Join our community</strong> - Connect with fellow developers and innovators
-                                                        </td>
-                                                    </tr>
-                                                    <tr>
-                                                        <td style="padding: 10px 0; color: #5a6c7d; font-size: 15px; line-height: 1.5;">
-                                                            <span style="color: #667eea; font-weight: bold;">📚</span> 
-                                                            <strong>Access documentation</strong> - Get started with our comprehensive guides
-                                                        </td>
-                                                    </tr>
-                                                </table>
-                                            </td>
-                                        </tr>
-                                    </table>
+                                    
                                     
                                     <p style="color: #5a6c7d; font-size: 16px; line-height: 1.6; margin: 30px 0 0 0;">
-                                        Need assistance? Our support team is available 24/7 to help you succeed. Just reply to this email! 💜
+                                        Need assistance? Our support team is available 24/7 to help you succeed. Just reply to this email!
                                     </p>
                                 </td>
                             </tr>
@@ -176,36 +138,6 @@ export const registerUser = async (req: Request, res: Response, next: NextFuncti
                     </td>
                 </tr>
                 
-                <!-- Social media section -->
-                <tr>
-                    <td style="padding: 30px 40px; background-color: #f8faff; text-align: center;">
-                        <table width="100%" cellpadding="0" cellspacing="0">
-                            <tr>
-                                <td style="text-align: center; padding-bottom: 20px;">
-                                    <p style="color: #2c3e50; font-size: 16px; margin: 0 0 15px 0; font-weight: 600;">
-                                        Stay connected with TRIVO Solutions
-                                    </p>
-                                    <table cellpadding="0" cellspacing="0" style="margin: 0 auto;">
-                                        <tr>
-                                            <td style="padding: 0 10px;">
-                                                <a href="#" style="display: inline-block; width: 45px; height: 45px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 50%; text-align: center; line-height: 45px; color: white; text-decoration: none; font-size: 18px; box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);">📘</a>
-                                            </td>
-                                            <td style="padding: 0 10px;">
-                                                <a href="#" style="display: inline-block; width: 45px; height: 45px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 50%; text-align: center; line-height: 45px; color: white; text-decoration: none; font-size: 18px; box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);">💼</a>
-                                            </td>
-                                            <td style="padding: 0 10px;">
-                                                <a href="#" style="display: inline-block; width: 45px; height: 45px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 50%; text-align: center; line-height: 45px; color: white; text-decoration: none; font-size: 18px; box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);">🐦</a>
-                                            </td>
-                                            <td style="padding: 0 10px;">
-                                                <a href="#" style="display: inline-block; width: 45px; height: 45px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 50%; text-align: center; line-height: 45px; color: white; text-decoration: none; font-size: 18px; box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);">📧</a>
-                                            </td>
-                                        </tr>
-                                    </table>
-                                </td>
-                            </tr>
-                        </table>
-                    </td>
-                </tr>
                 
                 <!-- Footer -->
                 <tr>
