@@ -1,6 +1,5 @@
 import { Schema, model, Document, Types } from 'mongoose';
 
-// Interface for the User document
 interface IUser extends Document {
   name?: string;
   email: string;
@@ -25,10 +24,10 @@ interface IUser extends Document {
   profileImage?: string;
   managerId?: Types.ObjectId;
   createdAt: Date;
+  isActive: boolean;
   updatedAt: Date;
 }
 
-// Define the User schema
 const userSchema = new Schema<IUser>(
   {
     name: { type: String },
@@ -60,6 +59,7 @@ const userSchema = new Schema<IUser>(
     city: { type: String },
     state: { type: String },
     pincode: { type: Number },
+    isActive: { type: Boolean, default: true },
     profileImage: { type: String },
     managerId: {
       type: Schema.Types.ObjectId,
@@ -69,6 +69,6 @@ const userSchema = new Schema<IUser>(
   { timestamps: true }
 );
 
-// Create and export the User model
+
 const User = model<IUser>('User', userSchema);
 export default User;

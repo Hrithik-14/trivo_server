@@ -21,18 +21,17 @@ export const searchUsers = async (req: Request, res: Response) => {
 };
 
 export const searchProject = async (req: Request, res: Response) => {
-  const { query } = req.body;
-  const filter: Record<string, any> = {};
+  const query = req.query.query as string;
 
   if (!query) {
-    throw createError(404, "name not found");
+    return res.status(400).json({ message: "Query is required" });
   }
 
-  if (query) {
-    filter.name = {$regex: query, $options: "i"};
-  }
+  const filter = {
+    name: { $regex: query, $options: "i" },
+  };
 
   const projects = await Project.find(filter);
-  res.json({projects})
+  res.json({ projects });
 };
 

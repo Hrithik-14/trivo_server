@@ -24,8 +24,8 @@ router
   )
   .get('/manager/getProjectByManager', errorHandling(getProjectByManager))
   .post("/manager/addTask", errorHandling(addTaskController))
-  .patch('/manager/toggleActive/:_id',errorHandling(toggleActiveController))
-  .get('/manager/getProjectById/:id', errorHandling(getProjectById))
+  .patch('/toggleActive/:id',errorHandling(toggleActiveController))
+  .get('/getProjectById/:id', errorHandling(getProjectById))
   .patch('/projectProgress/:id', errorHandling(projectProgressController))
 
 
