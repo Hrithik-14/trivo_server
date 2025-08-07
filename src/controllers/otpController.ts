@@ -31,8 +31,6 @@ export const sendOTP = async (req: Request, res: Response, next: NextFunction) =
 
         
         await Otp.deleteMany({ email: user.email });
-
-       
         await Otp.create({ email: user.email, otp, expiresAt });
 
         

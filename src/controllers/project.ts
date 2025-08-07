@@ -160,14 +160,14 @@ export const toggleActiveController = async (
 ): Promise<void> => {
   try {
     const { isActive } = req.body;
-    const { _id } = req.params;
+    const { id } = req.params;
 
-    if (!mongoose.isValidObjectId(_id)) {
+    if (!mongoose.isValidObjectId(id)) {
       throw createError(400, "Invalid project ID");
     }
 
     const updatedProject = await Project.findByIdAndUpdate(
-      _id,
+      id,
       { isActive },
       { new: true }
     );
@@ -191,26 +191,32 @@ export const getAllProject = async (
   res: Response,
   next: NextFunction
 ): Promise<void> => {
-  const page = parseInt(req.query.page as string) || 1;
-  const limit = parseInt(req.query.limit as string) || 10;
-  const skip = (page - 1) * limit;
 
-  const total = await Project.countDocuments();
-  const project = await Project.find()
-    .populate("members", "name")
-    .sort({ createdAt: -1, _id: -1 })
-    .skip(skip)
-    .limit(limit);
-  if (!project) {
-    throw createError(404, "projects not found");
-  }
-  res.status(200).json({
-    total,
-    page,
-    totalPages: Math.ceil(total / limit),
-    project,
-  });
-};
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 10;
+    const skip = (page - 1) * limit;
+    
+    const total = await Project.countDocuments();
+    const ongoing = await Project.countDocuments({ status: 'ongoing' });
+    const completed = await Project.countDocuments({ status: 'completed' });
+
+    const project = await Project.find().populate('members', 'name').sort({ createdAt: -1, _id: -1 }).skip(skip).limit(limit);;
+    if(!project){
+      throw createError(404, "projects not found")
+    }
+    res.status(200).json({
+      total,
+      page,
+      totalPages: Math.ceil(total / limit),
+      project,
+      stats: {
+        total: Number(total),
+        ongoing: Number(ongoing),
+        completed: Number(completed)
+      }
+    })
+}
+
 
 export const getProjectByManager = async (
   req: Request,

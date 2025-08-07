@@ -1,9 +1,14 @@
-import { Request, Response, NextFunction } from "express";
-import bcrypt from "bcryptjs";
-import jwt from "jsonwebtoken";
-import User from "../models/user";
-import { createError } from "../helper/errorMiddleware";
-import { sendMail } from "../utils/sendMail";
+import { Request, Response, NextFunction } from 'express';
+import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
+import User from '../models/user';
+import { createError } from '../helper/errorMiddleware';
+import { sendMail } from '../utils/sendMail';
+import mongoose from 'mongoose';
+import cloudinary from '../configs/cloudinary';
+import fs  from 'fs';
+
+
 
 export const registerUser = async (
   req: Request,
@@ -41,22 +46,23 @@ export const registerUser = async (
 
   const profileImageUrl = file.path;
 
-  const user = await User.create({
-    name,
-    email,
-    role,
-    employeeCode,
-    phoneNumber,
-    dateOfBirth,
-    designation,
-    street,
-    city,
-    state,
-    pincode,
-    managerId,
-    profileImage: profileImageUrl,
-    password: null,
-  });
+    const user = await User.create({
+        name,
+        email,
+        role,
+        employeeCode,
+        phoneNumber,
+        dateOfBirth,
+        designation,
+        street,
+        city,
+        state,
+        pincode,
+        managerId,
+        isActive: true,
+        profileImage: profileImageUrl,
+        password: null,
+    });
 
   const token = jwt.sign(
     { id: user._id, email: user.email },
@@ -462,49 +468,132 @@ export const getAllUsers = async (
   });
 };
 
-export const getAllManagers = async (
-  req: Request,
-  res: Response,
-  next: NextFunction
-) => {
-  const managers = await User.find({ role: "manager" }, { _id: 1, name: 1 });
-  res.status(200).json(managers);
-};
+export const getAllManagers = async ( req: Request, res: Response, next: NextFunction ) => {
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 10;
+    const skip = (page - 1) * limit;
 
-export const getAllManagersDetail = async (
-  req: Request,
-  res: Response,
-  next: NextFunction
-) => {
-  const managers = await User.find({ role: "manager" });
-  res.status(200).json(managers);
-};
+    const total = await User.countDocuments({ role: 'manager' })
+    const managers = await User.find({ role: 'manager' }).sort({ createdAt: -1, _id: -1 }).skip(skip).limit(limit)
+    if (!managers) throw createError(404, "Managers not found")
+    res.status(200).json({ total, page, totalPages: Math.ceil(total / limit), managers })
+}
 
-export const getAllEmployees = async (
-  req: Request,
-  res: Response,
-  next: NextFunction
-) => {
-  const managers = await User.find({ role: "employee" }, { _id: 1, name: 1 });
-  res.status(200).json(managers);
-};
 
-export const getAllEmployeesDetail = async (
-  req: Request,
-  res: Response,
-  next: NextFunction
-) => {
-  const managers = await User.find({ role: "employee" });
-  res.status(200).json(managers);
-};
 
-export const getUser = async (
-  req: Request,
-  res: Response,
-  next: NextFunction
-) => {
-  const { id } = req.params;
-  const user = await User.findById(id);
-  if (!user) return next(createError(404, "Not found"));
-  res.json(user);
+export const getAllManagersDetail = async ( req: Request, res: Response, next: NextFunction ) => {
+    const managers = await User.find({ role: 'manager' }, { _id: 1, name: 1 })
+    res.status(200).json(managers)
+}
+
+
+
+
+export const getAllEmployeesDetail = async ( req: Request, res: Response, next: NextFunction ) => {
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 10;
+    const skip = (page - 1) * limit;
+
+    const total = await User.countDocuments({ role: 'employee' })
+    const managers = await User.find({ role: 'employee' }).sort({ createdAt: -1, _id: -1 }).skip(skip).limit(limit)
+    res.status(200).json({ total, page, totalPages: Math.ceil(total / limit), managers })
+}
+
+
+
+export const getAllEmployees = async ( req: Request, res: Response, next: NextFunction ) => {
+    const managers = await User.find({ role: 'employee' }, { _id: 1, name: 1 })
+    res.status(200).json(managers)
+}
+
+
+
+export const getUser = async (req: Request, res: Response, next: NextFunction) => {
+    const { id } = req.params
+    const user = await User.findById( id )
+    if(!user) return next(createError(404, 'Not found'))
+    res.json(user)
+}
+
+
+
+export const blockUser = async (req: Request, res: Response) => {
+    const { id } = req.params;
+    const { isActive } = req.body;
+
+    const user = await User.findByIdAndUpdate(id, { isActive }, { new: true });
+
+    if (!user) throw createError(404, 'User not found');
+    res.status(200).json(user);
+}
+
+
+export const updateUser = async (req: Request, res: Response, next: NextFunction) => {
+    const { id } = req.params;
+
+    try {
+        const {
+        name,
+        email,
+        role,
+        phoneNumber,
+        dateOfBirth,
+        street,
+        city,
+        state,
+        pincode,
+        managerId,
+        designation,
+        } = req.body;
+
+        const updatedData: any = {
+        name,
+        email,
+        role,
+        phoneNumber,
+        dateOfBirth,
+        street,
+        city,
+        state,
+        pincode,
+        designation,
+        };
+    if (req.file) {
+    const localPath = req.file.path;
+
+    const result = await cloudinary.uploader.upload(localPath, {
+        folder: 'users',
+    });
+
+    updatedData.profileImage = result.secure_url;
+    
+    if (fs.existsSync(localPath)) {
+        fs.unlinkSync(localPath);
+    }
+    }
+
+        if (role === "Employee" && managerId && managerId !== "") {
+        updatedData.managerId = managerId;
+        } else {
+        updatedData.$unset = { managerId: 1 };
+        }
+
+        const updatedUser = await User.findByIdAndUpdate(id, updatedData, {
+        new: true,
+        runValidators: true,
+        });
+
+        if (!updatedUser) {
+        return res.status(404).json({ message: "User not found" });
+        }
+
+        res.status(200).json({
+        message: "Updated user successfully",
+        status: "success",
+        updatedUser,
+        });
+    } catch (err: any) {
+        console.error("Update user error:", err);
+        res.status(500).json({ message: "Internal Server Error", error: err.message });
+    }
 };
