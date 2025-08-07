@@ -160,14 +160,14 @@ export const toggleActiveController = async (
 ): Promise<void> => {
   try {
     const { isActive } = req.body;
-    const { _id } = req.params;
+    const { id } = req.params;
 
-    if (!mongoose.isValidObjectId(_id)) {
+    if (!mongoose.isValidObjectId(id)) {
       throw createError(400, "Invalid project ID");
     }
 
     const updatedProject = await Project.findByIdAndUpdate(
-      _id,
+      id,
       { isActive },
       { new: true }
     );
@@ -197,6 +197,9 @@ export const getAllProject = async (
     const skip = (page - 1) * limit;
     
     const total = await Project.countDocuments();
+    const ongoing = await Project.countDocuments({ status: 'ongoing' });
+    const completed = await Project.countDocuments({ status: 'completed' });
+
     const project = await Project.find().populate('members', 'name').sort({ createdAt: -1, _id: -1 }).skip(skip).limit(limit);;
     if(!project){
       throw createError(404, "projects not found")
@@ -205,7 +208,12 @@ export const getAllProject = async (
       total,
       page,
       totalPages: Math.ceil(total / limit),
-      project
+      project,
+      stats: {
+        total: Number(total),
+        ongoing: Number(ongoing),
+        completed: Number(completed)
+      }
     })
 }
 
