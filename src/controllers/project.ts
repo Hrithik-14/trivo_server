@@ -191,24 +191,26 @@ export const getAllProject = async (
   res: Response,
   next: NextFunction
 ): Promise<void> => {
+  const page = parseInt(req.query.page as string) || 1;
+  const limit = parseInt(req.query.limit as string) || 10;
+  const skip = (page - 1) * limit;
 
-    const page = parseInt(req.query.page as string) || 1;
-    const limit = parseInt(req.query.limit as string) || 10;
-    const skip = (page - 1) * limit;
-    
-    const total = await Project.countDocuments();
-    const project = await Project.find().populate('members', 'name').sort({ createdAt: -1, _id: -1 }).skip(skip).limit(limit);;
-    if(!project){
-      throw createError(404, "projects not found")
-    }
-    res.status(200).json({
-      total,
-      page,
-      totalPages: Math.ceil(total / limit),
-      project
-    })
-}
-
+  const total = await Project.countDocuments();
+  const project = await Project.find()
+    .populate("members", "name")
+    .sort({ createdAt: -1, _id: -1 })
+    .skip(skip)
+    .limit(limit);
+  if (!project) {
+    throw createError(404, "projects not found");
+  }
+  res.status(200).json({
+    total,
+    page,
+    totalPages: Math.ceil(total / limit),
+    project,
+  });
+};
 
 export const getProjectByManager = async (
   req: Request,
@@ -217,23 +219,23 @@ export const getProjectByManager = async (
 ): Promise<void> => {
   try {
     const { id } = req.body;
-    if (!id || typeof id !== 'string') {
-      throw createError(400, 'Invalid or missing manager ID');
+    if (!id || typeof id !== "string") {
+      throw createError(400, "Invalid or missing manager ID");
     }
 
     const projects: IProject[] = await Project.find({ managerId: id });
 
     if (projects.length === 0) {
-      throw createError(404, 'No projects found for this manager');
+      throw createError(404, "No projects found for this manager");
     }
 
     res.status(200).json({
-      message: 'Projects retrieved successfully',
-      status: 'success',
+      message: "Projects retrieved successfully",
+      status: "success",
       projects,
     });
   } catch (error) {
-    console.error('Error fetching projects by manager:', error);
+    console.error("Error fetching projects by manager:", error);
     next(error);
   }
 };
@@ -243,57 +245,98 @@ export const getProjectById = async (
   res: Response,
   next: NextFunction
 ): Promise<void> => {
-  try{
+  try {
     const id = req.params.id;
     const project = await Project.findById(id)
-      .populate('managerId', 'name')
-      .populate('members', 'name role');
+      .populate("managerId", "name")
+      .populate("members", "name role");
 
-    if (!project) throw createError(404, 'Project not found');
+    if (!project) throw createError(404, "Project not found");
 
     const formattedProject = {
       ...project.toObject(),
-      startDate: project.startDate ? new Date(project.startDate).toISOString(): null,
-      endDate: project.endDate ? new Date(project.endDate).toISOString():null,
+      startDate: project.startDate
+        ? new Date(project.startDate).toISOString()
+        : null,
+      endDate: project.endDate ? new Date(project.endDate).toISOString() : null,
     };
 
     res.status(200).json(formattedProject);
-  }catch(error){
-        next(error)
+  } catch (error) {
+    next(error);
   }
-}
-
+};
 
 export const projectProgressController = async (
   req: Request,
   res: Response,
   next: NextFunction
 ): Promise<void> => {
-  try {
-    const { id } = req.params;
-    const { status } = req.body;
-    if(!id){
-      throw createError(404,"project not found")
-    }
-    if(!status){
-      throw createError(404,"status not found")
-    }
-
-    const updatedStatus = await Project.findByIdAndUpdate(
-      id,
-      {status},
-      {new:true}
-    )
-    if(!updatedStatus){
-      throw createError(404,"status not found")
-    }
-
-    res.status(200).json({
-      message:"status updated successfully",
-      status:"success",
-      updatedStatus
-    })
-  } catch (error) {
-    next(error)
+  const { id } = req.params;
+  const { status } = req.body;
+  if (!id) {
+    throw createError(404, "project not found");
   }
+  if (!status) {
+    throw createError(404, "status not found");
+  }
+
+  const updatedStatus = await Project.findByIdAndUpdate(
+    id,
+    { status },
+    { new: true }
+  );
+  if (!updatedStatus) {
+    throw createError(404, "status not found");
+  }
+
+  res.status(200).json({
+    message: "status updated successfully",
+    status: "success",
+    updatedStatus,
+  });
+};
+
+export const updateProject = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  const { id } = req.params;
+  if(!id){
+    throw createError(404,"project not found")
+  }
+  const {
+    name,
+    startDate,
+    endDate,
+    managerId,
+    description,
+    client,
+    clientEmail,
+  } = req.body;
+
+  const updatedProject = await Project.findByIdAndUpdate(
+    id,
+    {
+      name,
+      startDate,
+      endDate,
+      managerId,
+      description,
+      client,
+      clientEmail,
+    },
+    { new: true }
+  );
+  if(!updatedProject){
+    throw createError(404, "updates project not found")
+  }
+
+  res.status(200).json({
+    message:"updated project successfull",
+    status:"success",
+    updatedProject
+  })
+  
 };

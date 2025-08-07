@@ -1,6 +1,6 @@
 import express from 'express';
 import { errorHandling } from '../helper/errorMiddleware';
-import { getAllEmployees, getAllEmployeesDetail, getAllManagers, getAllManagersDetail, getAllUsers, getUser, loginUser, registerUser, setPassword, updateUser } from '../controllers/auth';
+import { getAllEmployees, getAllEmployeesDetail, getAllManagers, getAllManagersDetail, getAllUsers, getUser, loginUser, registerUser, setPassword } from '../controllers/auth';
 import { upload } from '../helper/upload';
 
 import { resetPassword, sendOTP, verifyOTP } from '../controllers/otpController';
