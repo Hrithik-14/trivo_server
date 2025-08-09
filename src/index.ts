@@ -8,6 +8,8 @@ import projectRoutes from './routes/projectRoutes'
 import searchRoutes from './routes/searchRoutes'
 import payslipsRoutes from './routes/payslipsRoutes'
 import path from "path";
+import { initSocket } from "./socket";
+import http from "http"
 
 dotenv.config();
 
@@ -20,6 +22,8 @@ app.use(cors({
     origin: process.env.FRONTEND_URL,
     credentials: true
 }));
+const server = http.createServer(app);
+initSocket(server);
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
