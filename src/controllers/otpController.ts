@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import Otp from "../models/otp";
-import User from "../models/user";
+import {User} from "../models/user";
 import { sendMail } from "../utils/sendMail";
 import { createError } from "../helper/errorMiddleware";
 import bcrypt from "bcryptjs";

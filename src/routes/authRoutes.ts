@@ -1,6 +1,6 @@
 import express from 'express';
 import { errorHandling } from '../helper/errorMiddleware';
-import { blockUser, getAllEmployees, getAllEmployeesDetail, getAllManagers, getAllManagersDetail, getAllUsers, getUser, loginUser, registerUser, setPassword, updateUser } from '../controllers/auth';
+import { blockUser, getAllEmployees, getAllEmployeesDetail, getAllManagers, getAllManagersDetail, getAllUsers, getUser, getUsersRegistered, loginUser, registerUser, setPassword, updateUser } from '../controllers/auth';
 import { upload } from '../helper/upload';
 
 import { resetPassword, sendOTP, verifyOTP } from '../controllers/otpController';
@@ -24,5 +24,6 @@ router.post('/auth/verify-otp',errorHandling(verifyOTP))
 router.post('/auth/reset-password',errorHandling(resetPassword))
 router.patch('/:id/active', errorHandling(blockUser))
 router.patch('/updateuser/:id', upload.single('profileImage'), errorHandling(updateUser))
+router.get('/getgroupusers', errorHandling(getUsersRegistered))
 
 export default router;  
