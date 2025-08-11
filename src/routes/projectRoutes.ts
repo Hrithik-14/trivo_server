@@ -8,6 +8,7 @@ import {
   getProjectByEmployee,
   getProjectById,
   getProjectByManager,
+  ongoingManagerProject,
   projectProgressController,
   toggleActiveController,
   updateProject,
@@ -29,7 +30,7 @@ router
   .get('/getProjectById/:id', errorHandling(getProjectById))
   .patch('/projectProgress/:id', errorHandling(projectProgressController))
   .patch('/updateProject/:id', errorHandling(updateProject))
+  .get('/managersongoing/:id', errorHandling(ongoingManagerProject))
   .get('/getProjectByEmployee/:id', errorHandling(getProjectByEmployee))
-
 
 export default router;

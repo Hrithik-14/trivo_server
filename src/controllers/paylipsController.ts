@@ -1,6 +1,6 @@
 import { Request, Response } from "express";
 import Payslip from "../models/Payslips";
-import User from "../models/user";
+import {User} from "../models/user";
 
 export const createPayslips = async (req: Request, res: Response) => {
     const payslipData = req.body;

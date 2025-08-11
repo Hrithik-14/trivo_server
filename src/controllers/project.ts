@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import Project, { IProject } from "../models/project";
 import mongoose from "mongoose";
-import User from "../models/user";
+import {User} from "../models/user";
 import Task from "../models/task";
 import { createError } from "../helper/errorMiddleware";
 
@@ -371,3 +371,13 @@ export const updateProject = async (
   })
   
 };
+
+
+
+export const ongoingManagerProject = async (req: Request, res: Response) => {
+  const { id } = req.params
+  if (!id) return createError(404, 'Not Found')
+  const projects = await Project.find({ managerId: id, status: 'ongoing' });
+
+  res.json(projects)
+}
