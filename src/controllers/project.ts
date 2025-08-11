@@ -246,6 +246,28 @@ export const getProjectByManager = async (
   }
 };
 
+export const getProjectByEmployee = async(
+  req:Request,
+  res:Response,
+  next:NextFunction
+) => {
+  const {id} = req.params;
+   if (!id || typeof id !== "string") {
+      throw createError(400, "Invalid or missing employee ID");
+    }
+
+    const projects: IProject[] = await Project.find({ members: id }).populate("members");
+    if (projects.length === 0) {
+      throw createError(404, "No projects found for this manager");
+    }
+     res.status(200).json({
+      message: "Projects retrieved successfully",
+      status: "success",
+      projects,
+    });
+}
+
+
 export const getProjectById = async (
   req: Request,
   res: Response,

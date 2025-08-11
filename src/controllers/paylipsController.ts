@@ -9,8 +9,6 @@ export const createPayslips = async (req: Request, res: Response) => {
     res.status(201).json({ message: 'Payslip saved successfully', payslip });
 }
 
-
-
 export const getPayslips = async (req: Request, res: Response) => {
         const page = parseInt(req.query.page as string) || 1;
         const limit = parseInt(req.query.limit as string) || 10;
