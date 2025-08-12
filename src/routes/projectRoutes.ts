@@ -8,8 +8,8 @@ import {
   getProjectById,
   getProjectByManager,
   projectProgressController,
-  // getProjectByManager,
   toggleActiveController,
+  updateProject,
 } from "../controllers/project";
 
 const router = express.Router();
@@ -27,6 +27,7 @@ router
   .patch('/toggleActive/:id',errorHandling(toggleActiveController))
   .get('/getProjectById/:id', errorHandling(getProjectById))
   .patch('/projectProgress/:id', errorHandling(projectProgressController))
+  .patch('/updateProject/:id', errorHandling(updateProject))
 
 
 export default router;
