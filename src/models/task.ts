@@ -1,11 +1,11 @@
 import mongoose, { Document, Schema } from 'mongoose';
 
 export interface ITask extends Document {
-  _id: mongoose.Types.ObjectId;
   title: string;
   status: 'pending' | 'completed';
   assignedTo?: mongoose.Types.ObjectId;
   projectId: mongoose.Types.ObjectId;
+  batchTime?: Date;
 }
 
 const taskSchema: Schema<ITask> = new Schema<ITask>({
@@ -28,6 +28,7 @@ const taskSchema: Schema<ITask> = new Schema<ITask>({
     ref: 'Project',
     required: true,
   },
+  batchTime: { type: Date }
 });
 
 const Task = mongoose.model<ITask>('Task', taskSchema);
