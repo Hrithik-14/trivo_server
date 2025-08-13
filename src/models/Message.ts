@@ -1,0 +1,37 @@
+import mongoose, { Document, Schema } from 'mongoose';
+
+interface IMessage extends Document {
+  groupId: mongoose.Types.ObjectId;
+  senderId: mongoose.Types.ObjectId;
+  content: string;
+  createdAt: Date;
+  updatedAt: Date;
+  recieverId: mongoose.Types.ObjectId;
+}
+
+const MessageSchema = new Schema<IMessage>({
+  groupId: {
+    type: Schema.Types.ObjectId,
+    ref: 'Group',
+    index: true
+  },
+  senderId: {
+    type: Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
+  recieverId: {
+    type: Schema.Types.ObjectId,
+    ref: 'User',
+  },
+  content: {
+    type: String,
+    required: true,
+    trim: true,
+    maxlength: 1000
+  }
+}, {
+  timestamps: true
+});
+
+export const Message = mongoose.model<IMessage>('Message', MessageSchema);

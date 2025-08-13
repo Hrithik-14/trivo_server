@@ -1,10 +1,10 @@
 import { Request, Response, NextFunction } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import User from '../models/user';
+import { IUser, User } from '../models/user';
 import { createError } from '../helper/errorMiddleware';
 import { sendMail } from '../utils/sendMail';
-import mongoose from 'mongoose';
+import { Document } from 'mongoose';
 import cloudinary from '../configs/cloudinary';
 import fs  from 'fs';
 
@@ -78,7 +78,6 @@ export const registerUser = async (
         subject: 'Welcome to TRIVO Solutions',
         html: `
         <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 20px;  overflow: hidden;">
-   
                 <!-- Header with Tech gradient -->
                 <tr>
                     <td style=" padding: 40px 30px; text-align: center; position: relative;">
@@ -529,3 +528,17 @@ export const updateUser = async (req: Request, res: Response, next: NextFunction
         res.status(500).json({ message: "Internal Server Error", error: err.message });
     }
 };
+
+
+
+export const getUsersRegistered = async( req: Request, res: Response ) => {
+    const users = await User.find({}, { _id: 1, name: 1, employeeCode: 1 }).lean();
+    
+    const resData = users.map((user) => ({
+        id: user._id.toString(),
+        name: user.name,
+        employeeCode: user.employeeCode,
+    }))
+
+    res.json(resData)
+}

@@ -1,37 +1,36 @@
-import { Server } from "socket.io";
-import http from "http";
+// socketHandler.ts - Optimized version
+import { Socket, Server } from "socket.io";
+import { Message } from "./models/Message";
 
-let io: Server;
+export const socketHandler = (io: Server) => {
+    io.on("connection", (socket: Socket) => {
+        console.log("User connected", socket.id);
 
-export const initSocket = (server: http.Server) => {
-  io = new Server(server, {
-    cors: {
-      origin: process.env.FRONTEND_URL,
-      methods: ["GET", "POST"],
-      credentials: true,
-    },
-  });
+        socket.on("joinGroup", (groupId: string) => {
+            socket.join(groupId);
+            console.log(`User joined group: ${groupId}`);
+        });
 
-  io.on("connection", (socket) => {
-    console.log("✅ User connected:", socket.id);
+        socket.on("sendMessage", async ({ groupId, senderId, content }) => {
+            try {
+                const message = new Message({
+                    groupId,
+                    senderId,
+                    content
+                });
 
-    // Join user-specific notification room
-    socket.on("joinRoom", (userId: string) => {
-      socket.join(userId);
-      console.log(`📌 User ${userId} joined their notification room`);
+                const savedMsg = await message.save();
+                const populatedMsg = await savedMsg.populate("senderId", "name email");
+
+                io.to(groupId).emit("newMessage", populatedMsg);
+            } catch (err) {
+                console.error("Failed to save message", err);
+                socket.emit("messageError", { error: "Failed to send message" });
+            }
+        });
+
+        socket.on("disconnect", () => {
+            console.log("User disconnected", socket.id);
+        });
     });
-
-    socket.on("disconnect", () => {
-      console.log("❌ User disconnected:", socket.id);
-    });
-  });
-
-  return io;
-};
-
-export const getIO = () => {
-  if (!io) {
-    throw new Error("Socket.io not initialized!");
-  }
-  return io;
 };
