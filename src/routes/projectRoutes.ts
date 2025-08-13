@@ -5,9 +5,13 @@ import {
   addManagerProjectController,
   addTaskController,
   getAllProject,
+
   getProjectByEmployee,
+
+  getMemeberproject,
   getProjectById,
   getProjectByManager,
+  getProjectsByMember,
   ongoingManagerProject,
   projectProgressController,
   toggleActiveController,
@@ -20,11 +24,7 @@ const router = express.Router();
 router
   .post("/admin/addAdminProject", errorHandling(addAdminProjectController))
   .get('/admin/getAllProject', errorHandling(getAllProject))
-
-  .post(
-    "/manager/addManagerProject",
-    errorHandling(addManagerProjectController)
-  )
+  .post("/manager/addManagerProject", errorHandling(addManagerProjectController))
   .get('/manager/:id/getProjectByManager', errorHandling(getProjectByManager))
   .post("/manager/addTask", errorHandling(addTaskController))
   .patch('/toggleActive/:id',errorHandling(toggleActiveController))
@@ -32,6 +32,10 @@ router
   .patch('/projectProgress/:id', errorHandling(projectProgressController))
   .patch('/updateProject/:id', errorHandling(updateProject))
   .get('/managersongoing/:id', errorHandling(ongoingManagerProject))
+
   .get('/getProjectByEmployee/:id', errorHandling(getProjectByEmployee))
+
+  .get('/member/:memberId', errorHandling(getMemeberproject))
+  .get('/allProject/member/:memberId', errorHandling(getProjectsByMember))
 
 export default router;
