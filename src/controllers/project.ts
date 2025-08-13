@@ -1,8 +1,8 @@
 import { Request, Response, NextFunction } from "express";
 import Project, { IProject } from "../models/project";
 import mongoose from "mongoose";
-import {User} from "../models/user";
-import Task from "../models/task";
+import {  User } from "../models/user";
+import Task, { ITask } from "../models/task";
 import { createError } from "../helper/errorMiddleware";
 
 interface ProjectRequestBody {
@@ -22,6 +22,21 @@ interface ProjectRequestBody {
   projectId: string;
   isActive: Boolean;
 }
+interface AddManagerProjectBody {
+  projectId: string;
+  employeeCode: string;
+}
+
+import { Document, Types } from "mongoose";
+
+export interface IUser extends Document {
+  _id: Types.ObjectId;
+  name: string;
+  email: string;
+  employeeCode: string;
+}
+
+
 
 export const addAdminProjectController = async (
   req: Request<{}, {}, ProjectRequestBody>,
@@ -98,7 +113,7 @@ export const addTaskController = async (
 };
 
 export const addManagerProjectController = async (
-  req: Request,
+  req: Request<{}, {}, AddManagerProjectBody>,
   res: Response,
   next: NextFunction
 ) => {
@@ -109,30 +124,27 @@ export const addManagerProjectController = async (
       return res.status(400).json({ message: "All fields are required" });
     }
 
-    if (
-      !mongoose.isValidObjectId(projectId) ||
-      !mongoose.isValidObjectId(employeeCode)
-    ) {
-      return res
-        .status(400)
-        .json({ message: "Invalid projectId or employeeCode" });
+    if (!mongoose.isValidObjectId(projectId)) {
+      return res.status(400).json({ message: "Invalid projectId" });
     }
 
-    const project = await Project.findById(projectId);
-
+    const project: IProject | null = await Project.findById(projectId);
     if (!project) {
       return res.status(404).json({ message: "Project not found" });
     }
 
-    const employeeId = new mongoose.Types.ObjectId(employeeCode);
-
-    if (!project.members.some((member) => member.equals(employeeId))) {
-      project.members.push(employeeId);
+    const employee: IUser | null = await User.findOne({ employeeCode });
+    if (!employee) {
+      return res.status(404).json({ message: "Employee not found" });
     }
 
-    const employeeTasks = await Task.find({
+    if (!project.members.some((member) => member.equals(employee._id as Types.ObjectId))) {
+      project.members.push(employee._id as Types.ObjectId);
+    }
+
+    const employeeTasks: ITask[] = await Task.find({
       projectId,
-      assignedTo: employeeCode,
+      assignedTo: employee._id, // If assignedTo is ObjectId
     });
 
     const newTaskIds = employeeTasks
@@ -191,32 +203,34 @@ export const getAllProject = async (
   res: Response,
   next: NextFunction
 ): Promise<void> => {
+  const page = parseInt(req.query.page as string) || 1;
+  const limit = parseInt(req.query.limit as string) || 10;
+  const skip = (page - 1) * limit;
 
-    const page = parseInt(req.query.page as string) || 1;
-    const limit = parseInt(req.query.limit as string) || 10;
-    const skip = (page - 1) * limit;
-    
-    const total = await Project.countDocuments();
-    const ongoing = await Project.countDocuments({ status: 'ongoing' });
-    const completed = await Project.countDocuments({ status: 'completed' });
+  const total = await Project.countDocuments();
+  const ongoing = await Project.countDocuments({ status: "ongoing" });
+  const completed = await Project.countDocuments({ status: "completed" });
 
-    const project = await Project.find().populate('members', 'name').sort({ createdAt: -1, _id: -1 }).skip(skip).limit(limit);;
-    if(!project){
-      throw createError(404, "projects not found")
-    }
-    res.status(200).json({
-      total,
-      page,
-      totalPages: Math.ceil(total / limit),
-      project,
-      stats: {
-        total: Number(total),
-        ongoing: Number(ongoing),
-        completed: Number(completed)
-      }
-    })
-}
-
+  const project = await Project.find()
+    .populate("members", "name")
+    .sort({ createdAt: -1, _id: -1 })
+    .skip(skip)
+    .limit(limit);
+  if (!project) {
+    throw createError(404, "projects not found");
+  }
+  res.status(200).json({
+    total,
+    page,
+    totalPages: Math.ceil(total / limit),
+    project,
+    stats: {
+      total: Number(total),
+      ongoing: Number(ongoing),
+      completed: Number(completed),
+    },
+  });
+};
 
 export const getProjectByManager = async (
   req: Request,
@@ -246,27 +260,28 @@ export const getProjectByManager = async (
   }
 };
 
-export const getProjectByEmployee = async(
-  req:Request,
-  res:Response,
-  next:NextFunction
+export const getProjectByEmployee = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
 ) => {
-  const {id} = req.params;
-   if (!id || typeof id !== "string") {
-      throw createError(400, "Invalid or missing employee ID");
-    }
+  const { id } = req.params;
+  if (!id || typeof id !== "string") {
+    throw createError(400, "Invalid or missing employee ID");
+  }
 
-    const projects: IProject[] = await Project.find({ members: id }).populate("members");
-    if (projects.length === 0) {
-      throw createError(404, "No projects found for this manager");
-    }
-     res.status(200).json({
-      message: "Projects retrieved successfully",
-      status: "success",
-      projects,
-    });
-}
-
+  const projects: IProject[] = await Project.find({ members: id }).populate(
+    "members"
+  );
+  if (projects.length === 0) {
+    throw createError(404, "No projects found for this manager");
+  }
+  res.status(200).json({
+    message: "Projects retrieved successfully",
+    status: "success",
+    projects,
+  });
+};
 
 export const getProjectById = async (
   req: Request,
@@ -325,17 +340,14 @@ export const projectProgressController = async (
   });
 };
 
-
-
-
 export const updateProject = async (
   req: Request,
   res: Response,
   next: NextFunction
 ) => {
   const { id } = req.params;
-  if(!id){
-    throw createError(404,"project not found")
+  if (!id) {
+    throw createError(404, "project not found");
   }
   const {
     name,
@@ -360,24 +372,21 @@ export const updateProject = async (
     },
     { new: true }
   );
-  if(!updatedProject){
-    throw createError(404, "updates project not found")
+  if (!updatedProject) {
+    throw createError(404, "updates project not found");
   }
 
   res.status(200).json({
-    message:"updated project successfull",
-    status:"success",
-    updatedProject
-  })
-  
+    message: "updated project successfull",
+    status: "success",
+    updatedProject,
+  });
 };
 
-
-
 export const ongoingManagerProject = async (req: Request, res: Response) => {
-  const { id } = req.params
-  if (!id) return createError(404, 'Not Found')
-  const projects = await Project.find({ managerId: id, status: 'ongoing' });
+  const { id } = req.params;
+  if (!id) return createError(404, "Not Found");
+  const projects = await Project.find({ managerId: id, status: "ongoing" });
 
-  res.json(projects)
-}
+  res.json(projects);
+};

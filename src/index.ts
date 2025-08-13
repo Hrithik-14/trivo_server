@@ -15,6 +15,7 @@ import groupRoutes from './routes/groupRoutes'
 import messageRoutes from './routes/messageRoutes'
 import { errorMiddleware } from "./helper/errorMiddleware";
 import { socketHandler } from "./socket";
+import reportRoutes from "./routes/reportRoutes";
 
 
 dotenv.config();
@@ -39,6 +40,7 @@ app.use('/api', searchRoutes)
 app.use('/api', payslipsRoutes)
 app.use('/api', groupRoutes)
 app.use('/api', messageRoutes)
+app.use('/api', reportRoutes)
 
 
 app.use(errorMiddleware);

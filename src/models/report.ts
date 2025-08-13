@@ -5,6 +5,7 @@ export type ReportStatus = "pending" | "accepted" | "rejected";
 export interface IReport extends Document {
   date: Date;
   submittedBy: Types.ObjectId;
+  submittedTo:Types.ObjectId;
   projectId: Types.ObjectId;
   employeeId: Types.ObjectId;
   completedTasks: string[];
@@ -12,7 +13,7 @@ export interface IReport extends Document {
   descriptions: string;
   startTime: string;
   endTime: string;
-  effectiveHours: number;
+  effectiveHours: string;
   performance: string;
   challenges: string;
   supportNeeded: string;
@@ -23,8 +24,9 @@ export interface IReport extends Document {
 
 const ReportSchema = new Schema<IReport>(
   {
-    date: { type: Date, required: true },
-    submittedBy: { type: Schema.Types.ObjectId, ref: "User", required: true },
+    date: { type: Date },
+    submittedBy: { type: Schema.Types.ObjectId, ref: "User" },
+    submittedTo:{ type: Schema.Types.ObjectId, ref: "User" },
     projectId: { type: Schema.Types.ObjectId, ref: "Project" },
     completedTasks: { type: [String], default: [] },
     plannedTasks: { type: [String], default: [] },
@@ -40,17 +42,16 @@ const ReportSchema = new Schema<IReport>(
       match: /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/,
     },
     effectiveHours: {
-      type: Number,
-      required: true,
+      type: String,
+      // required: true,
       min: 0,
     },
-    performance: { type: String, required: true },
-    challenges: { type: String, required: true },
-    supportNeeded: { type: String, required: true },
+    performance: { type: String },
+    challenges: { type: String},
+    supportNeeded: { type: String},
     status: {
       type: String,
       enum: ["pending", "accepted", "rejected"],
-      required: true,
       default: "pending",
     },
   },
