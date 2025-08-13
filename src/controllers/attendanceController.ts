@@ -5,16 +5,16 @@ import { Request, Response } from "express";
 
 interface MarkAttendanceBody {
   employeeId: string;
-  date: string; // ISO date string (e.g. "2025-08-12")
-  signInTime?: string; // e.g. "09:00:00"
+  date: string;
+  signInTime?: string;
   signOutTime?: string; 
   status?: 'present' | 'absent' | 'late' | 'halfday';
-   type?: 'signIn' | 'signOut';
+  type?: 'signIn' | 'signOut';
 }
 
 
 export const markAttendance = async (req: Request<{}, {}, MarkAttendanceBody>, res: Response) => {
- try {
+  try {
     const { employeeId, type } = req.body;
 
     if (!employeeId || !type) {
@@ -23,11 +23,9 @@ export const markAttendance = async (req: Request<{}, {}, MarkAttendanceBody>, r
 
     const employeeObjectId = new mongoose.Types.ObjectId(employeeId);
 
-    // Get today's date without time
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    // Get current time string in HH:mm:ss
     const now = new Date();
     const timeStr = now.toTimeString().split(' ')[0];
 
@@ -95,9 +93,7 @@ export const getAttendanceByEmployeeDate = async (req: Request, res: Response) =
 export const getAttendanceChart = async (req: Request, res: Response) => {
   const { userId } = req.params
   
-  
   const records = await Attendance.find({ employeeId: userId }).sort({ date: 1 });
-
     const data = records.map(record => {
       if (!record.signInTime || !record.signOutTime) return { date: record.date.toISOString().slice(0,10), hours: 0 };
       
@@ -124,8 +120,6 @@ export const getAttendanceChart = async (req: Request, res: Response) => {
 export const getMonthlyAttendance = async (req: Request, res:Response) => {
 try {
     const employeeId = req.params.id;
-
-    // Validate ObjectId
     if (!mongoose.Types.ObjectId.isValid(employeeId)) {
       return res.status(400).json({ message: 'Invalid employee ID' });
     }
