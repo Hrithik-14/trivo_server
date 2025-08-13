@@ -13,6 +13,8 @@ import searchRoutes from './routes/searchRoutes'
 import payslipsRoutes from './routes/payslipsRoutes'
 import groupRoutes from './routes/groupRoutes'
 import messageRoutes from './routes/messageRoutes'
+import taskRoutes from './routes/taskRoutes';
+import attendnaceRoutes from './routes/attendanceRoutes';
 import { errorMiddleware } from "./helper/errorMiddleware";
 import { socketHandler } from "./socket";
 
@@ -39,6 +41,8 @@ app.use('/api', searchRoutes)
 app.use('/api', payslipsRoutes)
 app.use('/api', groupRoutes)
 app.use('/api', messageRoutes)
+app.use('/api', attendnaceRoutes)
+app.use('/api', taskRoutes);
 
 
 app.use(errorMiddleware);

@@ -9,10 +9,7 @@ export const createGroup = async (req: Request, res: Response, next: NextFunctio
     let { members } = req.body;
     const createdBy = req.user?.id;
     const file = req.file
-    console.log('file', req.file);
-    console.log('body', req.body);
-    console.log('user', createdBy);
-    console.log('members', members);
+
     
 
     if (typeof members === 'string') {
@@ -56,6 +53,7 @@ export const getUserGroups = async (req: Request, res: Response) => {
             ]
         })
             .populate("members", "name email")
+            .populate("lastMessageId", "content senderId createdAt")
             .populate("createdBy", "name email")
             .sort({ updatedAt: -1 });
 
