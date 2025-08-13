@@ -5,7 +5,7 @@ import { authMiddleware } from '../helper/authMiddleware'
 
 const router = express.Router()
 
-router.post('/report/addReport/:id',authMiddleware,errorHandling(createEmployReport))
+router.post('/report/addReport/:id',errorHandling(createEmployReport))
 .get('/report/getReportsByEmployee/:id',authMiddleware,errorHandling(getReportsByEmployee))
 
 export default router

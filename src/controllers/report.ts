@@ -41,9 +41,6 @@ export const createEmployReport = async (
     supportNeeded,
   } = req.body;
 
-  console.log(req.body);
-  console.log("hdssj", req.user);
-  console.log(id);
   try {
     let completed;
     let planned;
@@ -71,11 +68,10 @@ export const createEmployReport = async (
       "managerId",
       "name"
     );
-    console.log(manager, "hh");
     const reportData = new Report({
       projectId: currentProject,
       submittedBy: id,
-      submittedTo: manager?.id,
+      submittedTo: manager?.managerId,
       date: new Date(), // required field
       startTime: formatTime(startTime),
       endTime: formatTime(endTime),
@@ -89,8 +85,6 @@ export const createEmployReport = async (
 
     await reportData.save();
 
-    console.log(reportData, "repor");
-
     res.status(201).json({
       message: "Employee report created successfully",
       data: reportData,
@@ -102,22 +96,24 @@ export const createEmployReport = async (
 };
 
 export const getReportsByEmployee = async (
-  req:Request,
-  res:Response,
-  next:NextFunction
+  req: Request,
+  res: Response,
+  next: NextFunction
 ) => {
-  const {id} = req.params;
-  if(!id){
-    throw createError(404, "employee not found")
+  const { id } = req.params;
+  if (!id) {
+    throw createError(404, "employee not found");
   }
 
-  const report = await Report.find({submittedBy:id})
-  if(report.length === 0){
-    throw createError(404, "Reports not found")
+  const report = await Report.find({ submittedBy: id });
+  if (report.length === 0) {
+    throw createError(404, "Reports not found");
   }
   res.status(200).json({
-    message:"get report by employee successfully",
-    status:"success",
-    report
-  })
-}
+    message: "get report by employee successfully",
+    status: "success",
+    report,
+  });
+};
+
+// export const

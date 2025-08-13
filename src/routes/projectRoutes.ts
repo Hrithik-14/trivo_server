@@ -13,6 +13,7 @@ import {
   toggleActiveController,
   updateProject,
 } from "../controllers/project";
+import { authMiddleware } from "../helper/authMiddleware";
 
 const router = express.Router();
 
@@ -24,7 +25,7 @@ router
     "/manager/addManagerProject",
     errorHandling(addManagerProjectController)
   )
-  .get('/manager/getProjectByManager', errorHandling(getProjectByManager))
+  .get('/manager/:id/getProjectByManager', errorHandling(getProjectByManager))
   .post("/manager/addTask", errorHandling(addTaskController))
   .patch('/toggleActive/:id',errorHandling(toggleActiveController))
   .get('/getProjectById/:id', errorHandling(getProjectById))
