@@ -5,6 +5,9 @@ import {
   addManagerProjectController,
   addTaskController,
   getAllProject,
+
+  getProjectByEmployee,
+
   getMemeberproject,
   getProjectById,
   getProjectByManager,
@@ -29,6 +32,9 @@ router
   .patch('/projectProgress/:id', errorHandling(projectProgressController))
   .patch('/updateProject/:id', errorHandling(updateProject))
   .get('/managersongoing/:id', errorHandling(ongoingManagerProject))
+
+  .get('/getProjectByEmployee/:id', errorHandling(getProjectByEmployee))
+
   .get('/member/:memberId', errorHandling(getMemeberproject))
   .get('/allProject/member/:memberId', errorHandling(getProjectsByMember))
 

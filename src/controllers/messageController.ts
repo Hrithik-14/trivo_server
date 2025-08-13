@@ -5,6 +5,7 @@ import { Group } from "../models/Group";
 export const getGroupMessages = async (req: Request, res: Response) => {
     const { groupId } = req.params;
     try {
+        
         const messages = await Message.find({ groupId })
             .populate("senderId", "name email profileImage")
             .sort({ createdAt: 1 });

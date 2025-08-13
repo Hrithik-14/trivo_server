@@ -17,6 +17,7 @@ import taskRoutes from './routes/taskRoutes';
 import attendnaceRoutes from './routes/attendanceRoutes';
 import { errorMiddleware } from "./helper/errorMiddleware";
 import { socketHandler } from "./socket";
+import reportRoutes from "./routes/reportRoutes";
 
 
 dotenv.config();
@@ -41,8 +42,10 @@ app.use('/api', searchRoutes)
 app.use('/api', payslipsRoutes)
 app.use('/api', groupRoutes)
 app.use('/api', messageRoutes)
+app.use('/api', reportRoutes)
 app.use('/api', attendnaceRoutes)
 app.use('/api', taskRoutes);
+
 
 
 app.use(errorMiddleware);
