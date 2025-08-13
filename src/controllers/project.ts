@@ -396,8 +396,8 @@ export const getProjectById = async (
   try {
     const id = req.params.id;
     const project = await Project.findById(id)
-      .populate("managerId", "name")
-      .populate("members", "name role");
+      .populate("managerId", "name profileImage")
+      .populate("members", "name role profileImage employeeCode");
 
     if (!project) throw createError(404, "Project not found");
 
@@ -501,3 +501,48 @@ export const ongoingManagerProject = async (req: Request, res: Response) => {
 
   res.json(projects)
 }
+
+
+
+export const getMemeberproject = async (req: Request, res: Response) => {
+  try {
+    const { memberId } = req.params;
+    const projects = await Project.find({ members: memberId });
+
+    res.status(200).json(projects);
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
+
+export const getProjectsByMember = async (req: Request, res: Response) => {
+  try {
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 10;
+    const skip = (page - 1) * limit;
+    const { memberId } = req.params;
+
+    const memberObjectId = new mongoose.Types.ObjectId(memberId);
+
+    const total = await Project.countDocuments({ members: memberObjectId })
+    const ongoing = await Project.countDocuments({members: memberObjectId, status: 'ongoing' });
+    const completed = await Project.countDocuments({members: memberObjectId, status: 'completed' });
+    const projects = await Project.find({ members: memberObjectId }).populate('members').populate('managerId') .sort({ createdAt: -1, _id: -1 }).skip(skip).limit(limit)
+
+    res.status(200).json({ 
+      total, 
+      page, 
+      totalPages: 
+      Math.ceil(total / limit),
+      stats: {
+        total: Number(total),
+        ongoing: Number(ongoing),
+        completed: Number(completed)
+      }, 
+      projects
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+};

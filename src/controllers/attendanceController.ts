@@ -88,3 +88,86 @@ export const getAttendanceByEmployeeDate = async (req: Request, res: Response) =
     res.status(500).json({ message: "Internal Server Error" });
   }
 };
+
+
+
+
+export const getAttendanceChart = async (req: Request, res: Response) => {
+  const { userId } = req.params
+  
+  
+  const records = await Attendance.find({ employeeId: userId }).sort({ date: 1 });
+
+    const data = records.map(record => {
+      if (!record.signInTime || !record.signOutTime) return { date: record.date.toISOString().slice(0,10), hours: 0 };
+      
+      const [inH, inM] = record.signInTime.split(':').map(Number);
+      const [outH, outM] = record.signOutTime.split(':').map(Number);
+
+      const inDate = new Date(record.date);
+      inDate.setHours(inH, inM, 0, 0);
+
+      const outDate = new Date(record.date);
+      outDate.setHours(outH, outM, 0, 0);
+
+      const diffHours = (outDate.getTime() - inDate.getTime()) / (1000 * 60 * 60);
+
+      return { date: record.date.toISOString().slice(0,10), hours: diffHours };
+    });
+
+    res.status(200).json(data);
+}
+
+
+
+
+export const getMonthlyAttendance = async (req: Request, res:Response) => {
+try {
+    const employeeId = req.params.id;
+
+    // Validate ObjectId
+    if (!mongoose.Types.ObjectId.isValid(employeeId)) {
+      return res.status(400).json({ message: 'Invalid employee ID' });
+    }
+
+    const startOfMonth = new Date();
+    startOfMonth.setDate(1);
+    startOfMonth.setHours(0, 0, 0, 0);
+
+    const endOfMonth = new Date(startOfMonth);
+    endOfMonth.setMonth(endOfMonth.getMonth() + 1);
+    endOfMonth.setMilliseconds(-1);
+
+    const stats = await Attendance.aggregate([
+      {
+        $match: {
+          employeeId: new mongoose.Types.ObjectId(employeeId),
+          date: { $gte: startOfMonth, $lte: endOfMonth },
+        },
+      },
+      {
+        $group: {
+          _id: '$status',
+          count: { $sum: 1 },
+        },
+      },
+    ]);
+
+    type Status = 'present' | 'absent' | 'late' | 'halfday';
+
+    const result: Record<Status, number> = { present: 0, absent: 0, late: 0, halfday: 0 };
+
+
+    stats.forEach((item) => {
+    const key = item._id as Status;
+      if (key in result) {
+        result[key] = item.count;
+      }
+    });
+
+    return res.json(result);
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ message: 'Server error' });
+  }
+}
