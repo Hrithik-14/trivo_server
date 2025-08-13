@@ -24,6 +24,11 @@ export const createPayslips = async (req: Request, res: Response) => {
             return res.status(400).json({ message: "Missing required fields" });
         }
 
+        const employee = await User.findOne({ employeeCode });
+        if (!employee) {
+            return res.status(404).json({ message: "Employee not found" });
+        }
+
         // Calculate total earnings, tax (10%), and net salary
         const totalEarnings = parseFloat(basicSalary) + parseFloat(allowance) + parseFloat(bonus) + parseFloat(incentive);
         const tax = totalEarnings * 0.10; // 10% tax
@@ -31,7 +36,7 @@ export const createPayslips = async (req: Request, res: Response) => {
 
         // Create payslip with calculated tax and net salary
         const payslipData = {
-            employeeCode,
+            employeeCode: employee._id,
             employeeName,
             email,
             street,
@@ -88,5 +93,37 @@ export const getPayslips = async (req: Request, res: Response) => {
     } catch (error) {
         console.error("Payslips fetching error:", error);
         res.status(500).json({ message: "Internal server error" });
+    }
+};
+
+
+
+export const getPayslipById = async (req: Request, res: Response) => {
+    try {
+        const { id } = req.params;
+
+        const payslip = await Payslip.findById(id);
+
+        if (!payslip) {
+            return res.status(404).json({ message: 'Payslip not found' });
+        }
+
+        res.status(200).json(payslip);
+    } catch (error) {
+        console.error('Error fetching payslip by ID:', error);
+        res.status(500).json({ message: 'Server error', error });
+    }
+};
+
+
+export const getPayslipsByUser = async (req: Request, res: Response) => {
+    try {
+        const { userId } = req.params;
+
+        const payslips = await Payslip.find({ employeeCode: userId }).sort({ salaryDate: -1 });
+
+        res.status(200).json(payslips);
+    } catch (error) {
+        res.status(500).json({ message: "Error fetching payslips", error });
     }
 };
