@@ -1,8 +1,8 @@
-import mongoose, { Document, Schema, Model } from 'mongoose';
+import mongoose, { Document, Schema, Model, Types } from 'mongoose';
 
 export interface IPayslip extends Document {
     employeeName: string;
-    employeeCode: string;
+    employeeCode: mongoose.Types.ObjectId;
     designation: string;
     email: string;
     phoneNumber: string;
@@ -24,7 +24,7 @@ export interface IPayslip extends Document {
 const PayslipSchema: Schema<IPayslip> = new Schema(
     {
         employeeName: { type: String, required: true },
-        employeeCode: { type: String, required: true },
+        employeeCode: { type: Schema.Types.ObjectId, ref: 'User',},
         designation: { type: String },
         email: { type: String, required: true },
         phoneNumber: { type: String, required: true },

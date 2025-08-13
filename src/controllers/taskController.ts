@@ -17,7 +17,6 @@ export const getTasksByProjectAndUser = async (
       throw createError(400, "Project ID and User ID are required");
     }
 
-    // Validate ObjectIds
     if (!mongoose.isValidObjectId(projectId) || !mongoose.isValidObjectId(userId)) {
       throw createError(400, "Invalid Project ID or User ID format");
     }
@@ -39,7 +38,6 @@ export const getTasksByProjectAndUser = async (
   }
 };
 
-// Add a single task for a specific user
 export const addTaskForUser = async (
   req: Request,
   res: Response,
@@ -52,23 +50,19 @@ export const addTaskForUser = async (
       throw createError(400, "Project ID, User ID, and title are required");
     }
 
-    // Validate ObjectIds
     if (!mongoose.isValidObjectId(projectId) || !mongoose.isValidObjectId(userId)) {
       throw createError(400, "Invalid Project ID or User ID format");
     }
 
-    // Validate title length
     if (title.trim().length < 3) {
       throw createError(400, "Task title must be at least 3 characters long");
     }
 
-    // Check if project exists
     const project = await Project.findById(projectId);
     if (!project) {
       throw createError(404, "Project not found");
     }
 
-    // Check if user is a member of the project
     const isMember = project.members.some(member => member.toString() === userId);
     if (!isMember) {
       throw createError(400, "User is not a member of this project");
@@ -84,10 +78,8 @@ export const addTaskForUser = async (
 
     const savedTask = await newTask.save();
     
-    // Populate the assignedTo field before sending response
     const populatedTask = await Task.findById(savedTask._id).populate('assignedTo', 'name employeeCode');
 
-    // Add task to project's tasks array if not already present
     if (!project.tasks.includes(savedTask._id as mongoose.Types.ObjectId)) {
       project.tasks.push(savedTask._id as mongoose.Types.ObjectId);
       await project.save();
@@ -103,7 +95,6 @@ export const addTaskForUser = async (
   }
 };
 
-// Delete a specific task
 export const deleteTask = async (
   req: Request,
   res: Response,
@@ -195,7 +186,6 @@ export const updateTask = async (
   }
 };
 
-// Get all tasks for a specific project (grouped by users)
 export const getTasksByProject = async (
   req: Request,
   res: Response,
@@ -216,7 +206,6 @@ export const getTasksByProject = async (
       .populate('assignedTo', 'name employeeCode')
       .sort({ createdAt: -1 });
 
-    // Group tasks by user
     const tasksByUser = tasks.reduce((acc, task) => {
       const userId = task.assignedTo?._id.toString();
       if (userId) {
