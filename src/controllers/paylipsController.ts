@@ -15,8 +15,8 @@ export const createPayslips = async (req: Request, res: Response) => {
             salaryDate,
             basicSalary,
             allowance,
-            bonus = 0,
-            incentive = 0,
+            bonus,
+            incentive,
         } = req.body;
 
         // Validate required fields
