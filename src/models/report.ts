@@ -8,8 +8,8 @@ export interface IReport extends Document {
   submittedTo:Types.ObjectId;
   projectId: Types.ObjectId;
   employeeId: Types.ObjectId;
-  completedTasks: string[];
-  plannedTasks: string[];
+  completedTasks: Types.ObjectId;
+  plannedTasks: Types.ObjectId;
   descriptions: string;
   startTime: string;
   endTime: string;
@@ -28,8 +28,9 @@ const ReportSchema = new Schema<IReport>(
     submittedBy: { type: Schema.Types.ObjectId, ref: "User" },
     submittedTo:{ type: Schema.Types.ObjectId, ref: "User" },
     projectId: { type: Schema.Types.ObjectId, ref: "Project" },
-    completedTasks: { type: [String], default: [] },
-    plannedTasks: { type: [String], default: [] },
+    completedTasks: [{ type: Schema.Types.ObjectId, ref: "Task" }],
+    plannedTasks: [{ type: Schema.Types.ObjectId, ref: "Task" }],
+
     descriptions: { type: String },
     startTime: {
       type: String,
@@ -45,6 +46,7 @@ const ReportSchema = new Schema<IReport>(
       type: String,
       // required: true,
       min: 0,
+      default: '0'
     },
     performance: { type: String },
     challenges: { type: String},

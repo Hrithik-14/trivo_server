@@ -231,14 +231,14 @@ export const addManagerProjectController = async (
     let group = await Group.findOne({ name: project.name });
 
     let managerId: mongoose.Types.ObjectId | null = null;
-if (project.managerId && mongoose.isValidObjectId(project.managerId)) {
-  managerId = project.managerId as mongoose.Types.ObjectId;
+    if (project.managerId && mongoose.isValidObjectId(project.managerId)) {
+      managerId = project.managerId as mongoose.Types.ObjectId;
 
-  if (!project.members.some((m) => m._id.equals(managerId!))) {
-    project.members.push(managerId);
-    await project.save();
-  }
-}
+      if (!project.members.some((m) => m._id.equals(managerId!))) {
+        project.members.push(managerId);
+        await project.save();
+      }
+    }
 
     if (!group) {
         const admin = await User.findOne({ role: "admin" }).select("_id");

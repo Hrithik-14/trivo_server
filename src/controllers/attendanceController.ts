@@ -1,3 +1,4 @@
+
 import mongoose from "mongoose";
 import { createError } from "../helper/errorMiddleware"
 import Attendance from "../models/attendance";
@@ -66,6 +67,10 @@ export const getAttendanceByEmployeeDate = async (req: Request, res: Response) =
     if (!employeeId || !date) {
       return res.status(400).json({ message: "employeeId and date required" });
     }
+
+    if (!employeeId || !mongoose.Types.ObjectId.isValid(employeeId)) {
+  return res.status(400).json({ message: "Invalid or missing employeeId" });
+}
 
     const employeeObjectId = new mongoose.Types.ObjectId(employeeId);
     const attendanceDate = new Date(date);
