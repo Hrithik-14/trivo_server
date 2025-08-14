@@ -4,6 +4,7 @@ import Report from "../models/report";
 import mongoose, { Types } from "mongoose";
 import { User } from "../models/user";
 import Attendance from "../models/attendance";
+import Task from "../models/task";
 
 
 interface CreateEmployeeReportBody {
@@ -111,7 +112,7 @@ export const createEmployReport = async (
     const effectiveHoursCalc = (reportEndMinutes - reportStartMinutes) / 60;
 
 
-    const completed = Array.isArray(completedTasks)
+const completed = Array.isArray(completedTasks)
       ? completedTasks
           .map((t: any) =>
             mongoose.Types.ObjectId.isValid(t?.value || t)
@@ -120,6 +121,14 @@ export const createEmployReport = async (
           )
           .filter(Boolean)
       : [];
+
+    if (completed.length > 0) {
+      await Task.updateMany(
+        { _id: { $in: completed } },
+        { $set: { status: "completed" } }
+      );
+    }
+
 
     const planned = Array.isArray(plannedTasks)
       ? plannedTasks
@@ -244,3 +253,87 @@ export const getMyReports = async (req: Request, res: Response) => {
     res.status(500).json({ message: "Server error" });
   }
 };
+
+
+
+export const getReportStatus = async (req: Request, res: Response) => {
+  const employeeId = req.params.id;
+  const reports = await Report.find({ employee: employeeId });
+  res.json({ report: reports });
+}
+
+
+
+export const createManagerReport = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  const { id } = req.params; 
+  const { startTime, endTime, description } = req.body;
+
+  try {
+    if (!id || !startTime || !endTime || !description) {
+      return next(createError(400, "Missing required fields"));
+    }
+
+    const to24HourFormat = (timeStr: string) => {
+      const date = new Date(`1970-01-01 ${timeStr}`);
+      if (isNaN(date.getTime())) throw new Error(`Invalid time: ${timeStr}`);
+      const hours = date.getHours().toString().padStart(2, "0");
+      const minutes = date.getMinutes().toString().padStart(2, "0");
+      return `${hours}:${minutes}`;
+    };
+
+    const toMinutes = (timeStr: string) => {
+      const parts = timeStr.split(":").map(Number);
+      return (parts[0] || 0) * 60 + (parts[1] || 0) + ((parts[2] || 0) / 60);
+    };
+
+    const formattedStart = to24HourFormat(startTime);
+    const formattedEnd = to24HourFormat(endTime);
+
+    const effectiveHours =
+      (toMinutes(formattedEnd) - toMinutes(formattedStart)) / 60;
+
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const todayEnd = new Date();
+    todayEnd.setHours(23, 59, 59, 999);
+
+    const existingReport = await Report.findOne({
+      submittedBy: id,
+      date: { $gte: todayStart, $lte: todayEnd },
+      role: "manager",
+      status: { $ne: "rejected" },
+    });
+
+    if (existingReport) {
+      return next(
+        createError(400, "You can submit only one manager report per day")
+      );
+    }
+
+    const reportData = new Report({
+      submittedBy: id,
+      role: "manager",
+      date: new Date(),
+      startTime: formattedStart,
+      endTime: formattedEnd,
+      effectiveHours: effectiveHours.toFixed(2),
+      descriptions: description.trim(),
+    });
+
+    await reportData.save();
+
+    res.status(201).json({
+      message: "Manager report created successfully",
+      data: reportData,
+    });
+  } catch (error) {
+    console.error("Error creating manager report:", error);
+    next(createError(500, "Internal server error"));
+  }
+};
+
+
