@@ -24,6 +24,7 @@ export const getTasksByProjectAndUser = async (
     const tasks = await Task.find({
       projectId,
       assignedTo: userId,
+      status: "pending",
     })
     .populate('assignedTo', 'name employeeCode')
     .sort({ createdAt: -1 });
