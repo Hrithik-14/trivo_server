@@ -16,11 +16,16 @@ interface CreateEmployeeReportBody {
   challenges?: string;
   supportNeeded?: string;
   managerId?: string;
+  submittedBy?: string;
 }
 
 // Request params type
-interface CreateEmployeeReportParams {
+interface Params {
   id: string;
+}
+
+export interface StatusUpdate {
+  status: "pending" | "accepted" | "rejected";
 }
 
 export const createEmployReport = async (
@@ -94,6 +99,45 @@ export const createEmployReport = async (
     next(createError(500, "Internal server error"));
   }
 };
+export const createManagerReport = async(
+  req:Request,
+  res:Response,
+  next:NextFunction
+) => {
+  const {id} = req.params
+  const {startTime,endTime,description} = req.body
+  if(!id){
+    throw createError(404, "report not found")
+  }
+  const admin = await User.findOne({role:"admin"})
+  if(!admin){
+    throw createError(404, "admin not found")
+  }
+
+  const formatTime = (timeStr: string) => {
+      const dateObj = new Date(`1970-01-01T${timeStr}`);
+      if (isNaN(dateObj.getTime())) {
+        throw new Error(`Invalid time format: ${timeStr}`);
+      }
+      return dateObj.toTimeString().slice(0, 5);
+    };
+
+  const reportData = new Report({
+    submittedBy:id,
+    submittedTo:admin?.id,
+    startTime:formatTime(startTime),
+    endTime:formatTime(endTime),
+    descriptions:description
+  })
+  await reportData.save()
+
+  res.status(200).json({
+    message:"Create manager report successfully",
+    status:"success",
+    reportData
+  })
+}
+
 
 export const getReportsByEmployee = async (
   req: Request,
@@ -115,5 +159,19 @@ export const getReportsByEmployee = async (
     report,
   });
 };
+export const getProjectByReport = async(
+  req:Request,
+  res:Response,
+  next:NextFunction
+) =>{
+  const {projectId, submittedBy} = req.body;
+  
+  const reports = await Report.find({projectId:projectId, submittedBy:submittedBy})
+  console.log("reports", reports);
 
-// export const
+  res.status(200).json({
+    message:"successs",
+    reports
+  })
+}
+
