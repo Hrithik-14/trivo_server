@@ -19,7 +19,8 @@ const projectSchema: Schema<IProject> = new Schema<IProject>({
   name: {
     type: String,
     required: true,
-    trim: true, 
+    trim: true,
+    unique: true,
   },
   description: {
     type: String,

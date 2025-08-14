@@ -7,6 +7,7 @@ interface IMessage extends Document {
   createdAt: Date;
   updatedAt: Date;
   recieverId: mongoose.Types.ObjectId;
+  readBy: mongoose.Types.ObjectId
 }
 
 const MessageSchema = new Schema<IMessage>({
@@ -29,7 +30,13 @@ const MessageSchema = new Schema<IMessage>({
     required: true,
     trim: true,
     maxlength: 1000
-  }
+  },
+  readBy: [
+    { 
+      type: mongoose.Schema.Types.ObjectId, 
+      ref: 'User' 
+    }
+  ],
 }, {
   timestamps: true
 });

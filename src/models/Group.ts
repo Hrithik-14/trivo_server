@@ -4,6 +4,7 @@ interface IGroup extends Document {
   name: string;
   members: mongoose.Types.ObjectId[];
   createdBy: mongoose.Types.ObjectId;
+  lastMessageId: mongoose.Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
   groupImage: string;
@@ -25,6 +26,10 @@ const GroupSchema = new Schema<IGroup>({
     type: Schema.Types.ObjectId,
     ref: 'User',
     required: true
+  },
+  lastMessageId: {
+    type: Schema.Types.ObjectId,
+    ref: 'Message'
   },
   groupImage: { type: String }
 }, {

@@ -401,6 +401,8 @@ export const getAllUsers = async (
   });
 };
 
+
+
 export const getAllManagers = async ( req: Request, res: Response, next: NextFunction ) => {
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 10;
