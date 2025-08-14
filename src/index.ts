@@ -15,13 +15,14 @@ import groupRoutes from './routes/groupRoutes'
 import messageRoutes from './routes/messageRoutes'
 import { errorMiddleware } from "./helper/errorMiddleware";
 import { socketHandler } from "./socket";
+import notificationRoutes from "./routes/notificationRoutes";
 
 
 dotenv.config();
 connectDB();
 
 const app: Application = express();
-const port = process.env.PORT;
+const port = process.env.PORT || 3001   ;
 
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use(express.json())
@@ -30,8 +31,6 @@ app.use(cors({
     origin: process.env.FRONTEND_URL,
     credentials: true
 }));
-const server = http.createServer(app);
-initSocket(server);
 
 
 
@@ -41,6 +40,7 @@ app.use('/api', searchRoutes)
 app.use('/api', payslipsRoutes)
 app.use('/api', groupRoutes)
 app.use('/api', messageRoutes)
+app.use('/api', notificationRoutes)
 
 
 app.use(errorMiddleware);
