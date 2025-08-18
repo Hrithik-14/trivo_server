@@ -1,4 +1,3 @@
-// socketHandler.ts - Optimized version
 import { Socket, Server } from "socket.io";
 import { Message } from "./models/Message";
 

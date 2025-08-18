@@ -42,11 +42,37 @@ export const markAttendance = async (req: Request<{}, {}, MarkAttendanceBody>, r
       });
     }
 
+    const officeStart = new Date(today);
+    officeStart.setHours(9, 0, 0, 0);
+
+    const officeEnd = new Date(today);
+    officeEnd.setHours(17, 0, 0, 0);
+
     if (type === 'signIn') {
       attendance.signInTime = timeStr;
-      attendance.status = 'present';
+
+      if (now > officeStart) {
+        attendance.status = 'late';
+      } else {
+        attendance.status = 'present';
+      }
     } else if (type === 'signOut') {
       attendance.signOutTime = timeStr;
+
+      if (attendance.signInTime) {
+        const [h, m, s] = attendance.signInTime.split(':').map(Number);
+        const signInDate = new Date(today);
+        signInDate.setHours(h, m, s);
+
+        const workHours = (now.getTime() - signInDate.getTime()) / (1000 * 60 * 60);
+
+        // Less than 7 hours or early leaving → halfday
+        if (workHours < 7 || now < officeEnd) {
+          attendance.status = 'halfday';
+        } else if (attendance.status !== 'late') {
+          attendance.status = 'present';
+        }
+      }
     }
 
     await attendance.save();
@@ -57,6 +83,8 @@ export const markAttendance = async (req: Request<{}, {}, MarkAttendanceBody>, r
     return res.status(500).json({ message: 'Internal server error' });
   }
 };
+
+
 
 
 
