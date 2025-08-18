@@ -1,6 +1,6 @@
 import express from 'express'
 import { errorHandling } from '../helper/errorMiddleware'
-import { createEmployReport, createManagerReport, getMyReports, getReportsByEmployee, getReportStatus, updateReportStatus } from '../controllers/report'
+import { createEmployReport, createManagerReport, getMyReports, getReportsByEmployee, getReportsByProject, getReportStatus, updateReportStatus } from '../controllers/report'
 import { authMiddleware } from '../helper/authMiddleware'
 
 const router = express.Router()
