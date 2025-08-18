@@ -359,3 +359,34 @@ export const createManagerReport = async (
     next(createError(500, "Internal server error"));
   }
 };
+
+
+
+export const getReportsByProject = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { projectId, submittedBy } = req.params;
+
+    if (!projectId || !submittedBy) {
+      throw createError(400, "Project ID, submittedBy and submiitedTo are required");
+    }
+
+    const reports = await Report.find({ projectId, submittedBy });
+
+    if (!reports || reports.length === 0) {
+      throw createError(404, "No reports found for this project");
+    }
+
+    res.status(200).json({
+      message: "Reports fetched successfully",
+      status: "success",
+      reports,
+      count: reports.length,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
