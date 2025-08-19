@@ -7,7 +7,8 @@ interface IMessage extends Document {
   createdAt: Date;
   updatedAt: Date;
   recieverId: mongoose.Types.ObjectId;
-  readBy: mongoose.Types.ObjectId
+  readBy: mongoose.Types.ObjectId[];
+  isRead: boolean;
 }
 
 const MessageSchema = new Schema<IMessage>({
@@ -37,6 +38,7 @@ const MessageSchema = new Schema<IMessage>({
       ref: 'User' 
     }
   ],
+  isRead: {type: Boolean, default: false}
 }, {
   timestamps: true
 });

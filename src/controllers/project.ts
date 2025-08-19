@@ -433,7 +433,7 @@ export const getProjectById = async (
   try {
     const id = req.params.id;
     const project = await Project.findById(id)
-      .populate("managerId", "name profileImage")
+      .populate("managerId", "name profileImage employeeCode")
       .populate("members", "name role profileImage employeeCode");
 
     if (!project) throw createError(404, "Project not found");

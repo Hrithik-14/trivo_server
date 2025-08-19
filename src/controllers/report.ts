@@ -5,6 +5,8 @@ import mongoose, { Types } from "mongoose";
 import { User } from "../models/user";
 import Attendance from "../models/attendance";
 import Task from "../models/task";
+import { sendEmail } from "../utils/sendEmail";
+import { employeeReportTemplate } from "./email";
 
 
 interface CreateEmployeeReportBody {
@@ -20,7 +22,6 @@ interface CreateEmployeeReportBody {
   managerId?: string;
 }
 
-// Request params type
 interface CreateEmployeeReportParams {
   id: string;
 }
@@ -79,12 +80,8 @@ export const createEmployReport = async (
     const signOutMinutes = toMinutes(attendance.signOutTime || "23:59");
     const reportStartMinutes = toMinutes(formattedStart);
     const reportEndMinutes = toMinutes(formattedEnd);
-    
 
-    if (
-      reportStartMinutes < signInMinutes ||
-      reportEndMinutes > signOutMinutes
-    ) {
+    if (reportStartMinutes < signInMinutes || reportEndMinutes > signOutMinutes) {
       return next(
         createError(
           400,
@@ -94,7 +91,7 @@ export const createEmployReport = async (
     }
 
 
-        const todayStart = new Date();
+    const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
     const todayEnd = new Date();
     todayEnd.setHours(23, 59, 59, 999);
@@ -158,6 +155,30 @@ const completed = Array.isArray(completedTasks)
     });
 
     await reportData.save();
+    const employee = await User.findById(id).select("name email");
+const managerUser = await User.findById(manager?.managerId).select("name email");
+
+if (!employee || !managerUser) {
+  return next(createError(404, "Employee or Manager not found"));
+}
+
+// Build HTML template
+const html = employeeReportTemplate({
+  employeeName: employee.name ?? "Unknown",
+  employeeEmail: employee.email ?? "no-email@example.com",
+  project: currentProject,
+  startTime: formattedStart,
+  endTime: formattedEnd,
+  effectiveHours: effectiveHoursCalc.toFixed(2),
+  performance,
+  challenges,
+  supportNeeded,
+});
+
+
+// Send email
+await sendEmail(managerUser.email, "New Employee Report Submitted", html, employee.email);
+   
 
     res.status(201).json({
       message: "Employee report created successfully",
@@ -182,7 +203,7 @@ export const getReportsByEmployee = async (
     throw createError(404, "employee not found");
   }
 
-  const report = await Report.find({ submittedBy: id }).sort({ createdAt: -1 });
+  const report = await Report.find({ submittedBy: id }).populate('completedTasks', 'title').populate('plannedTasks', 'title').sort({ createdAt: -1 });
   if (report.length === 0) {
     throw createError(404, "Reports not found");
   }
@@ -293,8 +314,34 @@ export const createManagerReport = async (
     const formattedStart = to24HourFormat(startTime);
     const formattedEnd = to24HourFormat(endTime);
 
-    const effectiveHours =
-      (toMinutes(formattedEnd) - toMinutes(formattedStart)) / 60;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const attendance = await Attendance.findOne({
+      employeeId: id,
+      date: { $gte: today },
+    });
+
+    if (!attendance) {
+      return next(createError(400, "No attendance found for today"));
+    }
+
+    const signInMinutes = toMinutes(attendance.signInTime || "00:00");
+    const signOutMinutes = toMinutes(attendance.signOutTime || "23:59");
+    const reportStartMinutes = toMinutes(formattedStart);
+    const reportEndMinutes = toMinutes(formattedEnd);
+
+    if (
+      reportStartMinutes < signInMinutes ||
+      reportEndMinutes > signOutMinutes
+    ) {
+      return next(
+        createError(
+          400,
+          `Report time must be within attendance: ${attendance.signInTime} - ${attendance.signOutTime}`
+        )
+      );
+    }
 
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
@@ -313,6 +360,9 @@ export const createManagerReport = async (
         createError(400, "You can submit only one manager report per day")
       );
     }
+
+    const effectiveHours =
+      (reportEndMinutes - reportStartMinutes) / 60;
 
     const reportData = new Report({
       submittedBy: id,
@@ -335,6 +385,8 @@ export const createManagerReport = async (
     next(createError(500, "Internal server error"));
   }
 };
+
+
 
 export const getReportsByProject = async (
   req: Request,
@@ -364,6 +416,3 @@ export const getReportsByProject = async (
     next(error);
   }
 };
-
-
-

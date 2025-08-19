@@ -59,10 +59,10 @@ export const createNotification = async (
   res: Response
 ) => {
   try {
-    console.log("1");
+   
     const { senderId, receiverId, type, action, entityId, description } = req.body;
 
-    console.log("2");
+  
 
     // Map default descriptions for each type
     const defaultDescriptions: Record<string, string> = {
@@ -114,12 +114,7 @@ export const getNotifications = async (
     const { userId } = req.params;
     validateObjectId(userId, "userId");
 
-    // Optional: Verify authenticated user (requires auth middleware)
-    // if (req.user?.id !== userId) {
-    //   return res.status(403).json({ error: "Unauthorized to fetch notifications for this user" });
-    // }
 
-    // Pagination parameters
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 10;
     const skip = (page - 1) * limit;

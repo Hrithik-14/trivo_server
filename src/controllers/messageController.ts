@@ -67,30 +67,134 @@ export const createMessage = async (req: Request, res: Response) => {
 
 export const getMessage = async (req: Request, res: Response) => {
     const { recieverId } = req.params;
+    const currentUserId = req.user?.id; // Assuming you have user ID from auth middleware
 
-    const messages = await Message.find({ recieverId })
-        .populate('senderId', 'name employeeCode')
-        .sort({ createdAt: 1 })
-    
-    res.json( messages )
+    if (!currentUserId) {
+        return res.status(401).json({ message: "User not authenticated" });
+    }
+
+    try {
+        // Get messages where either:
+        // 1. Current user sent to contact (senderId = currentUserId, recieverId = contact)
+        // 2. Contact sent to current user (senderId = contact, recieverId = currentUserId)
+        const messages = await Message.find({
+            $or: [
+                { senderId: currentUserId, recieverId: recieverId },
+                { senderId: recieverId, recieverId: currentUserId }
+            ]
+        })
+            .populate('senderId', 'name employeeCode email')
+            .sort({ createdAt: 1 });
+        
+        res.json(messages);
+    } catch (err) {
+        console.error("Error fetching messages:", err);
+        res.status(500).json({ message: "Failed to fetch messages" });
+    }
 }
 
 
 
 export const markGroupMessagesAsRead = async (req: Request, res: Response) => {
+    try {
+        const { groupId } = req.params;
+        const userId = req.user?.id;
+        if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+
+        const result = await Message.updateMany(
+        { groupId, readBy: { $ne: userId } },
+        { $addToSet: { readBy: userId } }
+        );
+
+        return res.status(200).json({ updatedCount: result.modifiedCount });
+    } catch (err) {
+        console.error(err);
+        return res.status(500).json({ error: 'Server error' });
+    }
+};
+
+
+export const getUserConversations = async (req: Request, res: Response) => {
   try {
-    const { groupId } = req.params;
-    const userId = req.user?.id;
-    if (!userId) return res.status(401).json({ error: 'Unauthorized' });
+    const currentUserId = req.user?.id;
+    
+    if (!currentUserId) {
+      return res.status(401).json({ error: 'User not authenticated' });
+    }
+    const mongoose = require('mongoose');
+    const currentUserObjectId = new mongoose.Types.ObjectId(currentUserId);
 
-    const result = await Message.updateMany(
-      { groupId, readBy: { $ne: userId } },  // messages in this group where userId not in readBy
-      { $addToSet: { readBy: userId } }      // add userId to readBy array only if not present
-    );
+    const conversations = await Message.aggregate([
+      {
+        $match: {
+          $and: [
+            { groupId: { $exists: false } },
+            {
+              $or: [
+                { senderId: currentUserObjectId },
+                { recieverId: currentUserId }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        $group: {
+          _id: {
+            $cond: {
+              if: { $eq: ["$senderId", currentUserObjectId] },
+              then: "$recieverId",
+              else: "$senderId"
+            }
+          },
+          lastMessageTime: { $max: "$createdAt" },
+          lastMessage: { $last: "$content" }
+        }
+      },
+      {
+        $addFields: {
+          userObjectId: {
+            $cond: {
+              if: { $type: "$_id" },
+              then: { $toObjectId: "$_id" },
+              else: "$_id"
+            }
+          }
+        }
+      },
+      {
+        $lookup: {
+          from: "users",
+          localField: "userObjectId",
+          foreignField: "_id",
+          as: "userInfo"
+        }
+      },
+      {
+        $unwind: "$userInfo"
+      },
+      {
+        $project: {
+          _id: "$userInfo._id",
+          name: "$userInfo.name",
+          email: "$userInfo.email",
+          profileImage: "$userInfo.profileImage",
+          employeeCode: "$userInfo.employeeCode",
+          createdAt: "$userInfo.createdAt",
+          lastMessage: 1,
+          lastMessageTime: 1
+        }
+      },
+      {
+        // Sort by last message time (most recent first)
+        $sort: { lastMessageTime: -1 }
+      }
+    ]);
 
-    return res.status(200).json({ updatedCount: result.modifiedCount });
-  } catch (err) {
-    console.error(err);
-    return res.status(500).json({ error: 'Server error' });
+    console.log(`Found ${conversations.length} conversations for user ${currentUserId}`);
+    res.status(200).json(conversations);
+  } catch (error) {
+    console.error('Error getting user conversations:', error);
+    res.status(500).json({ error: 'Failed to get conversations' });
   }
 };
