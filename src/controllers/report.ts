@@ -5,6 +5,7 @@ import mongoose, { Types } from "mongoose";
 import { User } from "../models/user";
 import Attendance from "../models/attendance";
 import Task from "../models/task";
+import LeaveRequest from "../models/LeaveRequest";
 
 
 interface CreateEmployeeReportBody {
@@ -60,8 +61,8 @@ export const createEmployReport = async (
       return (parts[0] || 0) * 60 + (parts[1] || 0) + ((parts[2] || 0) / 60);
     };
 
-    const formattedStart = to24HourFormat(startTime);
-    const formattedEnd = to24HourFormat(endTime);
+    let formattedStart = to24HourFormat(startTime);
+    let formattedEnd = to24HourFormat(endTime);
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -88,6 +89,15 @@ export const createEmployReport = async (
       );
     }
 
+    let reportDate = new Date()
+
+    const approvedRegularization = await LeaveRequest.findOne({employeeId: id, leaveType: 'Regularization', status: 'Approve'})
+
+    if (approvedRegularization) {
+      reportDate = approvedRegularization.date
+      formattedStart = '09:00'
+      formattedEnd = '17:00'
+    }
 
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
@@ -141,7 +151,7 @@ const completed = Array.isArray(completedTasks)
       projectId: currentProject,
       submittedBy: id,
       submittedTo: manager?.managerId,
-      date: new Date(),
+      date: reportDate,
       startTime: formattedStart,
       endTime: formattedEnd,
       effectiveHours: effectiveHoursCalc.toFixed(2),
@@ -390,3 +400,22 @@ export const getReportsByProject = async (
     next(error);
   }
 };
+
+
+
+export const getMyFilteredReport = async (req: Request, res: Response) => {
+    const { userId } = req.params
+    const { date } = req.query
+
+    if (!date) throw createError(400, 'Date is required')
+
+    const start = new Date(date as string);
+    start.setHours(0, 0, 0, 0);
+
+    const end = new Date(date as string);
+    end.setHours(23, 59, 59, 999);
+
+    const report = await Report.findOne({ submittedBy: userId, createdAt: { $gte: start, $lte: end } }).populate("projectId", 'name').populate('completedTasks', 'title').populate('plannedTasks', 'title')
+
+    res.json(report)
+}

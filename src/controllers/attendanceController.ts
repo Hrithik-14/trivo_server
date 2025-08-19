@@ -3,6 +3,7 @@ import mongoose from "mongoose";
 import { createError } from "../helper/errorMiddleware"
 import Attendance from "../models/attendance";
 import { Request, Response } from "express";
+import Report from "../models/report";
 
 interface MarkAttendanceBody {
   employeeId: string;
@@ -197,4 +198,43 @@ try {
     console.error(error);
     return res.status(500).json({ message: 'Server error' });
   }
+}
+
+
+
+
+export const getAttendneceHistory = async (req: Request, res: Response) => {
+  const { userId } = req.params
+  const { filter } = req.query
+
+  let dateFilter: any = {}
+
+  if (filter === "thisMonth") {
+    const start = new Date(new Date().getFullYear(), new Date().getMonth(), 1)
+    const end = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0)
+    dateFilter.date = { $gte: start, $lte: end }
+  }else if (filter === 'lastMonth') {
+    const now = new Date()
+    const start = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+    const end = new Date(now.getFullYear(), now.getMonth(), 0)
+    dateFilter.date = { $gte: start, $lte: end }
+  }
+
+  const present = await Attendance.countDocuments({ employeeId: userId, status: 'present', ...dateFilter })
+  const leave = await Attendance.countDocuments({ employeeId: userId, status: 'absent', ...dateFilter })
+  const late = await Attendance.countDocuments({ employeeId: userId, status: 'late', ...dateFilter })
+  const halfday = await Attendance.countDocuments({ employeeId: userId, status: 'halfday', ...dateFilter })
+
+  const totalDays = present + leave + halfday + late
+  const attendacePercentage = totalDays > 0 ? ((present / totalDays) * 100).toFixed(0) : 0
+
+  const reportAdd = await Report.aggregate([
+    { $match: { submittedBy: new mongoose.Types.ObjectId(userId), ...(dateFilter.date ? { date: dateFilter.date } : {}) } },
+    { $addFields: { effectiveHoursNum: { $toDouble: "$effectiveHours" } } },
+    { $group: { _id: null, totalHours: { $sum: "$effectiveHoursNum" } } }
+  ])
+
+  const totlaEffectiveHours = reportAdd.length > 0 ? reportAdd[0].totalHours.toFixed(2) : 0
+
+  res.json({ present, leave, late, halfday, totalDays, attendacePercentage, totlaEffectiveHours })
 }
