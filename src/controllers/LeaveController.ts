@@ -5,29 +5,46 @@ import Attendance from "../models/attendance";
 
 
 export const createLeaveRequest = async (req: Request, res: Response) => {
-    const { date, leaveType, description, requestTo } = req.body
-    const userId = req.user?.id
+    const { date, leaveType, description, requestTo } = req.body;
+    const userId = req.user?.id;
 
     const start = new Date(date);
     const end = new Date(date);
     end.setDate(end.getDate() + 1);
 
-    const existing = await LeaveRequest.findOne({ employeeId: userId,  date: { $gte: start, $lt: end } })
-    if (existing) throw createError(409, 'Already requested')
+    const maxSickLeaves = 20;
+    const approvedSickLeaves = await LeaveRequest.countDocuments({
+        employeeId: userId,
+        leaveType: "Sick",
+        status: "Approve",
+    });
+
+    if (leaveType === "Sick" && approvedSickLeaves >= maxSickLeaves) {
+        return res.status(400).json({ message: `You have already reached the limit of ${maxSickLeaves} sick leaves.`,});
+    }
+
+    const existing = await LeaveRequest.findOne({
+        employeeId: userId,
+        date: { $gte: start, $lt: end },
+    });
+    if (existing) {
+        return res.status(409).json({ message: "Leave already requested for this date" });
+    }
 
     const leaveRequest = {
         employeeId: userId,
         requestTo,
         date,
         leaveType,
-        description
-    }
+        description,
+    };
 
-    const leave = new LeaveRequest(leaveRequest)
-    await leave.save()
+    const leave = new LeaveRequest(leaveRequest);
+    await leave.save();
 
-    res.status(201).json({ message: 'Leave Request successfull', leave })
-}
+    res.status(201).json({ message: "Request successful", leave, approvedSickLeaves });
+};
+
 
 
 
@@ -84,10 +101,11 @@ export const getSpecificDay = async (req: Request, res:Response) => {
     const end = new Date(date)
     end.setDate(end.getDate() + 1)
 
+    const des = await LeaveRequest.findOne({ employeeId: userId, date: { $gte: start, $lt: end } })
     const dayStatus = await Attendance.findOne({ date: { $gte: start, $lt: end }, employeeId: userId })
     if (!dayStatus) throw createError(404, 'No status found')
 
-    res.json(dayStatus)
+    res.json({dayStatus, des})
 }
 
 

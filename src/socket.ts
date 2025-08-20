@@ -1,42 +1,7 @@
-
-// import { Socket, Server } from "socket.io";
-// import { Message } from "./models/Message";
-
-// export const socketHandler = (io: Server) => {
-//     io.on("connection", (socket: Socket) => {
-//         console.log("User connected", socket.id);
-
-//         socket.on("joinGroup", (groupId: string) => {
-//             socket.join(groupId);
-//             console.log(`User joined group: ${groupId}`);
-//         });
-
-//         socket.on("sendMessage", async ({ groupId, senderId, content }) => {
-//             try {
-//                 const message = new Message({
-//                     groupId,
-//                     senderId,
-//                     content
-//                 });
-
-//                 const savedMsg = await message.save();
-//                 const populatedMsg = await savedMsg.populate("senderId", "name email");
-
-//                 io.to(groupId).emit("newMessage", populatedMsg);
-//             } catch (err) {
-//                 console.error("Failed to save message", err);
-//                 socket.emit("messageError", { error: "Failed to send message" });
-//             }
-//         });
-
-//         socket.on("disconnect", () => {
-//             console.log("User disconnected", socket.id);
-//         });
-//     });
-// };
-
 import { Socket, Server } from "socket.io";
 import { Message } from "./models/Message";
+import { Group } from "./models/Group";
+import { User } from "./models/user"; 
 import Notification from "./models/notification";
 import { isValidObjectId } from "mongoose";
 
@@ -49,6 +14,18 @@ interface SendMessagePayload {
   groupId: string;
   senderId: string;
   content: string;
+}
+
+interface JoinDirectChatPayload {
+  userId: string;
+  contactId: string;
+}
+
+interface SendDirectMessagePayload {
+  senderId: string;
+  recieverId: string;
+  content: string;
+  createdAt: string;
 }
 
 interface JoinNotificationRoomPayload {
@@ -83,9 +60,126 @@ const validateString = (value: string, field: string, maxLength?: number): void 
 export const socketHandler = (io: Server) => {
   // Track rooms per socket for cleanup
   const socketRooms = new Map<string, Set<string>>();
+  const userSockets = new Map<string, string>(); // userId -> socketId mapping
 
   io.on("connection", (socket: Socket) => {
     console.log(`User connected: ${socket.id}`);
+
+    // ===== USER ROOM MANAGEMENT =====
+    socket.on("joinUser", (userId: string) => {
+      try {
+        validateObjectId(userId, "userId");
+        
+        socket.join(userId);
+        userSockets.set(userId, socket.id);
+        
+        if (!socketRooms.has(socket.id)) {
+          socketRooms.set(socket.id, new Set());
+        }
+        socketRooms.get(socket.id)!.add(userId);
+        
+        console.log(`User ${socket.id} joined personal room: ${userId}`);
+      } catch (err: any) {
+        console.error(`Join user room error for ${socket.id}:`, err.message);
+        socket.emit("joinUserError", { error: err.message });
+      }
+    });
+
+    // ===== DIRECT CHAT =====
+    socket.on("joinDirectChat", (payload: JoinDirectChatPayload) => {
+      try {
+        const { userId, contactId } = payload;
+        validateObjectId(userId, "userId");
+        validateObjectId(contactId, "contactId");
+
+        // Create a unique room ID for this direct chat
+        const roomId = [userId, contactId].sort().join("-");
+        socket.join(roomId);
+        
+        if (!socketRooms.has(socket.id)) {
+          socketRooms.set(socket.id, new Set());
+        }
+        socketRooms.get(socket.id)!.add(roomId);
+
+        console.log(`User ${socket.id} joined direct chat room: ${roomId}`);
+      } catch (err: any) {
+        console.error(`Join direct chat error for ${socket.id}:`, err.message);
+        socket.emit("joinDirectChatError", { error: err.message });
+      }
+    });
+
+    socket.on("sendDirectMessage", async (payload: SendDirectMessagePayload) => {
+      try {
+        const { senderId, recieverId, content } = payload;
+
+        // Validate inputs
+        validateObjectId(senderId, "senderId");
+        validateObjectId(recieverId, "recieverId");
+        validateString(content, "content", 1000);
+
+        // Create and save the message
+        const message = new Message({
+          senderId,
+          recieverId,
+          content,
+          createdAt: new Date(),
+        });
+
+        const savedMsg = await message.save();
+        
+        // Populate sender information
+        const populatedMsg = await Message.findById(savedMsg._id)
+          .populate("senderId", "name email employeeCode profileImage")
+          .lean();
+
+        if (!populatedMsg) {
+          throw new Error("Failed to retrieve populated message");
+        }
+
+        console.log(`Direct message saved and populated:`, populatedMsg);
+
+        // Emit to both users' personal rooms
+        io.to(senderId).emit("newDirectMessage", populatedMsg);
+        io.to(recieverId).emit("newDirectMessage", populatedMsg);
+        
+        // Also emit to the direct chat room if they're in it
+        const roomId = [senderId, recieverId].sort().join("-");
+        io.to(roomId).emit("newDirectMessage", populatedMsg);
+
+        console.log(`Direct message sent from ${senderId} to ${recieverId}`);
+        
+        // Optional: Create a notification for the receiver
+        try {
+          const senderUser = await User.findById(senderId).select("name").lean();
+          if (senderUser) {
+            const notification = await Notification.create({
+              senderId,
+              receiverId: recieverId,
+              type: "message",
+              action: "sent",
+              entityId: savedMsg._id,
+              description: `${senderUser.name} sent you a message`,
+              createdAt: new Date(),
+            });
+
+            const populatedNotification = await Notification.findById(notification._id)
+              .populate("senderId", "name email")
+              .lean();
+
+            if (populatedNotification) {
+              io.to(recieverId).emit("newNotification", populatedNotification);
+            }
+          }
+        } catch (notifErr) {
+          console.error("Failed to create notification for direct message:", notifErr);
+          // Don't fail the message if notification fails
+        }
+
+      } catch (err: any) {
+        console.error(`Send direct message error for ${socket.id}:`, err.message);
+        socket.emit("directMessageError", { error: err.message });
+      }
+    });
 
     // ===== CHAT GROUP =====
     socket.on("joinGroup", (payload: JoinGroupPayload) => {
@@ -114,7 +208,7 @@ export const socketHandler = (io: Server) => {
         // Validate inputs
         validateObjectId(groupId, "groupId");
         validateObjectId(senderId, "senderId");
-        validateString(content, "content", 1000); // Example max length
+        validateString(content, "content", 1000);
 
         // Ensure user is in the group
         if (!socket.rooms.has(groupId)) {
@@ -128,10 +222,9 @@ export const socketHandler = (io: Server) => {
           createdAt: new Date(),
         });
 
-        // Save and populate in one query
         const savedMsg = await message.save();
         const populatedMsg = await Message.findById(savedMsg._id)
-          .populate("senderId", "name email")
+          .populate("senderId", "name email profileImage")
           .lean();
 
         if (!populatedMsg) {
@@ -169,7 +262,6 @@ export const socketHandler = (io: Server) => {
       try {
         const { senderId, receiverId, type, action, entityId, description } = payload;
 
-        // Validate inputs
         validateObjectId(senderId, "senderId");
         validateObjectId(receiverId, "receiverId");
         validateObjectId(entityId, "entityId");
@@ -187,27 +279,30 @@ export const socketHandler = (io: Server) => {
           createdAt: new Date(),
         });
 
-        // Populate sender info
         const populatedNotification = await Notification.findById(notification._id)
           .populate("senderId", "name email")
           .lean();
 
-        if (!populatedNotification) {
-          throw new Error("Failed to retrieve populated notification");
+        if (populatedNotification) {
+          io.to(receiverId.toString()).emit("newNotification", populatedNotification);
+          console.log(`Notification sent to user ${receiverId} from ${senderId}`);
         }
-
-        io.to(receiverId.toString()).emit("newNotification", populatedNotification);
-        console.log(`Notification sent to user ${receiverId} from ${senderId}`);
       } catch (err: any) {
         console.error(`Send notification error for ${socket.id}:`, err.message);
         socket.emit("notificationError", { error: err.message });
       }
     });
 
-    // ===== DISCONNECT =====
     socket.on("disconnect", () => {
       console.log(`User disconnected: ${socket.id}`);
-      // Clean up rooms
+      
+      for (const [userId, socketId] of userSockets.entries()) {
+        if (socketId === socket.id) {
+          userSockets.delete(userId);
+          break;
+        }
+      }
+      
       const rooms = socketRooms.get(socket.id);
       if (rooms) {
         rooms.forEach((room) => socket.leave(room));

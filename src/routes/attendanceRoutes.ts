@@ -10,4 +10,5 @@ router.get('/attendance/:userId/', errorHandling(getAttendanceChart));
 router.get('/user/:id/monthly', errorHandling(getMonthlyAttendance));
 router.get('/user/attendace-history/:userId', errorHandling(getAttendneceHistory));
 
+
 export default router
