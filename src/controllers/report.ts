@@ -4,7 +4,7 @@ import Report from "../models/report";
 import mongoose, { Types } from "mongoose";
 import { User } from "../models/user";
 import Attendance from "../models/attendance";
-import Task from "../models/task";
+import Task, { ITask } from "../models/task";
 import LeaveRequest from "../models/LeaveRequest";
 
 
@@ -25,27 +25,23 @@ interface CreateEmployeeReportParams {
   id: string;
 }
 
-export const createEmployReport = async (
+
+export const createEmployReports = async (
   req: Request,
   res: Response,
   next: NextFunction
 ) => {
   const { id } = req.params;
-  const {
-    currentProject,
-    startTime,
-    endTime,
-    completedTasks,
-    plannedTasks,
-    performance,
-    challenges,
-    supportNeeded,
-    
-  } = req.body;
+  const reports = req.body;
+
+  if (!Array.isArray(reports) || reports.length === 0) {
+    return next(createError(400, "No reports provided or reports is not an array"));
+  }
 
   try {
-    if (!id || !currentProject || !startTime || !endTime ) {
-      return next(createError(400, "Missing required fields"));
+    const manager = await User.findById(id).populate("managerId", "name");
+    if (!manager) {
+      return next(createError(404, "User not found"));
     }
 
     const to24HourFormat = (timeStr: string) => {
@@ -61,115 +57,198 @@ export const createEmployReport = async (
       return (parts[0] || 0) * 60 + (parts[1] || 0) + ((parts[2] || 0) / 60);
     };
 
-    let formattedStart = to24HourFormat(startTime);
-    let formattedEnd = to24HourFormat(endTime);
+    const savedReports = [];
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const attendance = await Attendance.findOne({
-      employeeId: id,
-      date: { $gte: today },
-    });
+    for (const r of reports) {
+      const {
+        currentProject,
+        startTime,
+        endTime,
+        completedTasks,
+        plannedTasks,
+        performance,
+        challenges,
+        supportNeeded,
+        date
+      } = r;
 
-    if (!attendance) {
-      return next(createError(400, "No attendance found for today"));
+      if (!currentProject || !startTime || !endTime) {
+        return next(createError(400, "Missing required fields: currentProject, startTime, or endTime"));
+      }
+
+      // Parse the report date - must be provided from frontend
+      if (!date) {
+        return next(createError(400, "Date is required for each report"));
+      }
+      
+      const reportDate = new Date(date);
+      if (isNaN(reportDate.getTime())) {
+        return next(createError(400, "Invalid date format provided"));
+      }
+      reportDate.setHours(0, 0, 0, 0);
+
+      // Set date range for the specific report date
+      const reportDateStart = new Date(reportDate);
+      reportDateStart.setHours(0, 0, 0, 0);
+      const reportDateEnd = new Date(reportDate);
+      reportDateEnd.setHours(23, 59, 59, 999);
+
+      // Check for approved regularization for the specific report date
+      const approvedRegularization = await LeaveRequest.findOne({
+        employeeId: id,
+        leaveType: 'Regularization',
+        status: 'Approve',
+        date: { $gte: reportDateStart, $lte: reportDateEnd }
+      });
+
+      // Find attendance for the specific report date
+      const attendance = await Attendance.findOne({
+        employeeId: id,
+        date: { $gte: reportDateStart, $lte: reportDateEnd },
+      });
+
+      if (!attendance) {
+        return next(createError(400, `No attendance found for ${reportDate.toDateString()}`));
+      }
+
+      let formattedStart = to24HourFormat(startTime);
+      let formattedEnd = to24HourFormat(endTime);
+
+      // Apply regularization if approved for this specific date
+      if (approvedRegularization) {
+        formattedStart = '09:00';
+        formattedEnd = '17:00';
+      }
+
+      const reportStartMinutes = toMinutes(formattedStart);
+      const reportEndMinutes = toMinutes(formattedEnd);
+      const signInMinutes = toMinutes(attendance.signInTime || "00:00");
+      const signOutMinutes = toMinutes(attendance.signOutTime || "23:59");
+
+      // Validate time ranges only if no approved regularization
+      if (!approvedRegularization) {
+        if (reportStartMinutes < signInMinutes) {
+          return next(
+            createError(
+              400,
+              `Report start time (${formattedStart}) cannot be before attendance sign-in time (${attendance.signInTime}) for ${reportDate.toDateString()}`
+            )
+          );
+        }
+        if (reportEndMinutes > signOutMinutes) {
+          return next(
+            createError(
+              400,
+              `Report end time (${formattedEnd}) cannot be after attendance sign-out time (${attendance.signOutTime}) for ${reportDate.toDateString()}`
+            )
+          );
+        }
+      }
+
+      // Calculate report time
+      const reportTimeMinutes = reportEndMinutes - reportStartMinutes;
+      const reportTimeHours = reportTimeMinutes / 60;
+
+      // Validate total report time doesn't exceed attendance duration (only if no regularization)
+      if (!approvedRegularization) {
+        const attendanceDuration = signOutMinutes - signInMinutes;
+        if (reportTimeMinutes > attendanceDuration) {
+          return next(
+            createError(
+              400,
+              `Report time (${reportTimeHours.toFixed(2)} hours) exceeds attendance duration (${(attendanceDuration / 60).toFixed(2)} hours) for ${reportDate.toDateString()}`
+            )
+          );
+        }
+      }
+
+      // Process tasks and validate time
+      const allTaskIds: mongoose.Types.ObjectId[] = [];
+      const completed = Array.isArray(completedTasks)
+        ? completedTasks
+            .map((t: any) => {
+              const taskId = t?.value || t;
+              if (mongoose.Types.ObjectId.isValid(taskId)) {
+                allTaskIds.push(new mongoose.Types.ObjectId(taskId));
+                return new mongoose.Types.ObjectId(taskId);
+              }
+              return null;
+            })
+            .filter(Boolean)
+        : [];
+
+      const planned = Array.isArray(plannedTasks)
+        ? plannedTasks
+            .map((t: any) => {
+              const taskId = t?.value || t;
+              if (mongoose.Types.ObjectId.isValid(taskId)) {
+                allTaskIds.push(new mongoose.Types.ObjectId(taskId));
+                return new mongoose.Types.ObjectId(taskId);
+              }
+              return null;
+            })
+            .filter(Boolean)
+        : [];
+
+      if (allTaskIds.length > 0) {
+        const tasks: ITask[] = await Task.find({ _id: { $in: allTaskIds } }).lean();
+        const totalTaskHours = tasks.reduce((sum, task) => sum + (task.estimatedHours || 0), 0);
+        
+        const timeDifference = Math.abs(totalTaskHours - reportTimeHours);
+        if (timeDifference > 0.5) {
+          return next(
+            createError(
+              400,
+              `Total task time (${totalTaskHours.toFixed(2)} hours) does not match report time (${reportTimeHours.toFixed(2)} hours) for report dated ${reportDate.toDateString()}. Please adjust your tasks or report time.`
+            )
+          );
+        }
+      }
+
+      // Update completed tasks status
+      if (completed.length > 0) {
+        await Task.updateMany(
+          { _id: { $in: completed } },
+          { $set: { status: "completed" } }
+        );
+      }
+
+      // Update planned tasks status
+      if (planned.length > 0) {
+        await Task.updateMany(
+          {
+            _id: { $in: planned },
+            status: { $nin: ["completed", "in-progress"] }
+          },
+          { $set: { status: "in-progress" } }
+        );
+      }
+
+      const reportData = new Report({
+        projectId: currentProject,
+        submittedBy: id,
+        submittedTo: manager?.managerId,
+        date: reportDate,
+        startTime: formattedStart,
+        endTime: formattedEnd,
+        effectiveHours: reportTimeHours.toFixed(2),
+        completedTasks: completed,
+        plannedTasks: planned,
+        performance: performance || "",
+        challenges: challenges || "",
+        supportNeeded: supportNeeded || "",
+      });
+
+      const savedReport = await reportData.save();
+      savedReports.push(savedReport);
     }
-
-    const signInMinutes = toMinutes(attendance.signInTime || "00:00");
-    const signOutMinutes = toMinutes(attendance.signOutTime || "23:59");
-    const reportStartMinutes = toMinutes(formattedStart);
-    const reportEndMinutes = toMinutes(formattedEnd);
-
-    if (reportStartMinutes < signInMinutes || reportEndMinutes > signOutMinutes) {
-      return next(
-        createError(
-          400,
-          `Report time must be within attendance: ${attendance.signInTime} - ${attendance.signOutTime}`
-        )
-      );
-    }
-
-    let reportDate = new Date()
-
-    const approvedRegularization = await LeaveRequest.findOne({employeeId: id, leaveType: 'Regularization', status: 'Approve'})
-
-    if (approvedRegularization) {
-      reportDate = approvedRegularization.date
-      formattedStart = '09:00'
-      formattedEnd = '17:00'
-    }
-
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
-    const todayEnd = new Date();
-    todayEnd.setHours(23, 59, 59, 999);
-
-    const existingReport = await Report.findOne({
-      submittedBy: id,
-      date: { $gte: todayStart, $lte: todayEnd },
-      status: { $ne: "rejected" },
-    });
-
-    if (existingReport) {
-      return next(createError(400, "You can submit only one report per day"));
-    }
-
-    const effectiveHoursCalc = (reportEndMinutes - reportStartMinutes) / 60;
-
-
-const completed = Array.isArray(completedTasks)
-      ? completedTasks
-          .map((t: any) =>
-            mongoose.Types.ObjectId.isValid(t?.value || t)
-              ? new mongoose.Types.ObjectId(t?.value || t)
-              : null
-          )
-          .filter(Boolean)
-      : [];
-
-    if (completed.length > 0) {
-      await Task.updateMany(
-        { _id: { $in: completed } },
-        { $set: { status: "completed" } }
-      );
-    }
-
-
-    const planned = Array.isArray(plannedTasks)
-      ? plannedTasks
-          .map((t: any) =>
-            mongoose.Types.ObjectId.isValid(t?.value || t)
-              ? new mongoose.Types.ObjectId(t?.value || t)
-              : null
-          )
-          .filter(Boolean)
-      : [];
-
-    const manager = await User.findById(id).populate("managerId", "name");
-
-    const reportData = new Report({
-      projectId: currentProject,
-      submittedBy: id,
-      submittedTo: manager?.managerId,
-      date: reportDate,
-      startTime: formattedStart,
-      endTime: formattedEnd,
-      effectiveHours: effectiveHoursCalc.toFixed(2),
-      completedTasks: completed,
-      plannedTasks: planned,
-      performance: performance || "",
-      challenges: challenges || "",
-      supportNeeded: supportNeeded || "",
-    });
-
-    await reportData.save();
 
     res.status(201).json({
-      message: "Employee report created successfully",
-      data: reportData,
+      message: "Employee reports created successfully",
+      data: savedReports,
     });
   } catch (error) {
-    console.error("Error creating employee report:", error);
+    console.error("Error creating employee reports:", error);
     next(createError(500, "Internal server error"));
   }
 };
@@ -419,3 +498,21 @@ export const getMyFilteredReport = async (req: Request, res: Response) => {
 
     res.json(report)
 }
+
+
+
+export const getAllEmployeePerformance = async (req: Request, res: Response) => {
+  try {
+    const reports = await Report.find({}, { effectiveHours: 1, _id: 0 });
+    const allHours = reports.map(report => Number(report.effectiveHours));
+    const totalEffectiveHours = allHours.reduce((sum, hours) => sum + hours, 0);
+    const totalHours = reports.length * 8;
+
+    res.json({ totalEffectiveHours, totalHours });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+
