@@ -4,6 +4,8 @@ import Report from "../models/report";
 import mongoose, { Types } from "mongoose";
 import { User } from "../models/user";
 import Attendance from "../models/attendance";
+import Task from "../models/task";
+import LeaveRequest from "../models/LeaveRequest";
 
 
 interface CreateEmployeeReportBody {
@@ -17,16 +19,10 @@ interface CreateEmployeeReportBody {
   challenges?: string;
   supportNeeded?: string;
   managerId?: string;
-  submittedBy?: string;
 }
 
-// Request params type
-interface Params {
+interface CreateEmployeeReportParams {
   id: string;
-}
-
-export interface StatusUpdate {
-  status: "pending" | "accepted" | "rejected";
 }
 
 export const createEmployReport = async (
@@ -65,8 +61,8 @@ export const createEmployReport = async (
       return (parts[0] || 0) * 60 + (parts[1] || 0) + ((parts[2] || 0) / 60);
     };
 
-    const formattedStart = to24HourFormat(startTime);
-    const formattedEnd = to24HourFormat(endTime);
+    let formattedStart = to24HourFormat(startTime);
+    let formattedEnd = to24HourFormat(endTime);
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -83,12 +79,8 @@ export const createEmployReport = async (
     const signOutMinutes = toMinutes(attendance.signOutTime || "23:59");
     const reportStartMinutes = toMinutes(formattedStart);
     const reportEndMinutes = toMinutes(formattedEnd);
-    
 
-    if (
-      reportStartMinutes < signInMinutes ||
-      reportEndMinutes > signOutMinutes
-    ) {
+    if (reportStartMinutes < signInMinutes || reportEndMinutes > signOutMinutes) {
       return next(
         createError(
           400,
@@ -97,8 +89,17 @@ export const createEmployReport = async (
       );
     }
 
+    let reportDate = new Date()
 
-        const todayStart = new Date();
+    const approvedRegularization = await LeaveRequest.findOne({employeeId: id, leaveType: 'Regularization', status: 'Approve'})
+
+    if (approvedRegularization) {
+      reportDate = approvedRegularization.date
+      formattedStart = '09:00'
+      formattedEnd = '17:00'
+    }
+
+    const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
     const todayEnd = new Date();
     todayEnd.setHours(23, 59, 59, 999);
@@ -116,7 +117,7 @@ export const createEmployReport = async (
     const effectiveHoursCalc = (reportEndMinutes - reportStartMinutes) / 60;
 
 
-    const completed = Array.isArray(completedTasks)
+const completed = Array.isArray(completedTasks)
       ? completedTasks
           .map((t: any) =>
             mongoose.Types.ObjectId.isValid(t?.value || t)
@@ -125,6 +126,14 @@ export const createEmployReport = async (
           )
           .filter(Boolean)
       : [];
+
+    if (completed.length > 0) {
+      await Task.updateMany(
+        { _id: { $in: completed } },
+        { $set: { status: "completed" } }
+      );
+    }
+
 
     const planned = Array.isArray(plannedTasks)
       ? plannedTasks
@@ -142,7 +151,7 @@ export const createEmployReport = async (
       projectId: currentProject,
       submittedBy: id,
       submittedTo: manager?.managerId,
-      date: new Date(),
+      date: reportDate,
       startTime: formattedStart,
       endTime: formattedEnd,
       effectiveHours: effectiveHoursCalc.toFixed(2),
@@ -165,9 +174,6 @@ export const createEmployReport = async (
   }
 };
 
-
-
-
 export const getReportsByEmployee = async (
   req: Request,
   res: Response,
@@ -178,19 +184,19 @@ export const getReportsByEmployee = async (
     throw createError(404, "employee not found");
   }
 
-  const report = await Report.find({ submittedBy: id }).sort({ createdAt: -1 }).populate('completedTasks');
-  if (report.length === 0) {
-    throw createError(404, "Reports not found");
-  }
+  const report = await Report.find({ submittedBy: id })
+    .populate("completedTasks", "title")
+    .populate("plannedTasks", "title")
+    .sort({ createdAt: -1 });
+  // if (report.length === 0) {
+  //   throw createError(404, "Reports not found");
+  // }
   res.status(200).json({
     message: "get report by employee successfully",
     status: "success",
     report,
   });
 };
-
-
-
 
 export const updateReportStatus = async (req: Request, res: Response) => {
   try {
@@ -221,9 +227,6 @@ export const updateReportStatus = async (req: Request, res: Response) => {
   }
 };
 
-
-
-
 export const getMyReports = async (req: Request, res: Response) => {
   try {
     const userId = req.user?.id;
@@ -236,16 +239,152 @@ export const getMyReports = async (req: Request, res: Response) => {
       .populate("submittedBy", "name email")
       .populate("projectId", "name")
       .populate("completedTasks plannedTasks", "title")
-      .sort({ createdAt: -1, _id: -1 }).skip(skip).limit(limit)
+      .sort({ createdAt: -1, _id: -1 })
+      .skip(skip)
+      .limit(limit);
 
     res.status(200).json({
       count: reports.length,
       reports,
       page,
-      totalPages: Math.ceil(total / limit)
+      totalPages: Math.ceil(total / limit),
     });
   } catch (error) {
     console.error("Error fetching reports:", error);
     res.status(500).json({ message: "Server error" });
+  }
+};
+
+export const getReportStatus = async (req: Request, res: Response) => {
+  const employeeId = req.params.id;
+  const reports = await Report.find({ employee: employeeId });
+  res.json({ report: reports });
+};
+
+export const createManagerReport = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  const { id } = req.params;
+  const { startTime, endTime, description } = req.body;
+
+  try {
+    if (!id || !startTime || !endTime || !description) {
+      return next(createError(400, "Missing required fields"));
+    }
+
+    const to24HourFormat = (timeStr: string) => {
+      const date = new Date(`1970-01-01 ${timeStr}`);
+      if (isNaN(date.getTime())) throw new Error(`Invalid time: ${timeStr}`);
+      const hours = date.getHours().toString().padStart(2, "0");
+      const minutes = date.getMinutes().toString().padStart(2, "0");
+      return `${hours}:${minutes}`;
+    };
+
+    const toMinutes = (timeStr: string) => {
+      const parts = timeStr.split(":").map(Number);
+      return (parts[0] || 0) * 60 + (parts[1] || 0) + (parts[2] || 0) / 60;
+    };
+
+    const formattedStart = to24HourFormat(startTime);
+    const formattedEnd = to24HourFormat(endTime);
+
+    const effectiveHours =
+      (toMinutes(formattedEnd) - toMinutes(formattedStart)) / 60;
+
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const todayEnd = new Date();
+    todayEnd.setHours(23, 59, 59, 999);
+
+    const existingReport = await Report.findOne({
+      submittedBy: id,
+      date: { $gte: todayStart, $lte: todayEnd },
+      role: "manager",
+      status: { $ne: "rejected" },
+    });
+    const userAdmin = await User.findOne({ role: "admin" });
+    if (existingReport) {
+      return next(
+        createError(400, "You can submit only one manager report per day")
+      );
+    }
+
+    const reportData = new Report({
+      submittedBy: id,
+      submittedTo: userAdmin?._id,
+      role: "manager",
+      date: new Date(),
+      startTime: formattedStart,
+      endTime: formattedEnd,
+      effectiveHours: effectiveHours.toFixed(2),
+      descriptions: description.trim(),
+    });
+
+    await reportData.save();
+
+    res.status(201).json({
+      message: "Manager report created successfully",
+      data: reportData,
+    });
+  } catch (error) {
+    console.error("Error creating manager report:", error);
+    next(createError(500, "Internal server error"));
+  }
+};
+
+// import { Request, Response, NextFunction } from "express";
+// import Report, { IReport } from "../models/Report.js";
+
+// Helper function to get today's date range in IST
+const getTodayDateRange = (): { start: Date; end: Date } => {
+  const today = new Date();
+  // Adjust for IST (+5:30)
+  const offset = 5.5 * 60 * 60 * 1000; // 5 hours 30 minutes in milliseconds
+  const istDate = new Date(today.getTime() + offset);
+
+  // Start of day (00:00:00 IST)
+  const start = new Date(istDate);
+  start.setHours(0, 0, 0, 0);
+
+  // End of day (23:59:59.999 IST)
+  const end = new Date(istDate);
+  end.setHours(23, 59, 59, 999);
+
+  return { start, end };
+};
+
+// Controller to get all manager reports for today
+export const getAllManagerReports = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    // Get today's date range in IST
+    const { start, end } = getTodayDateRange();
+
+    // Fetch reports where submittedTo is not null and date is today
+    const reports = await Report.find({
+      submittedTo: { $ne: null }, // Manager reports
+      date: { $gte: start, $lt: end }, // Today's reports
+    })
+      .populate("submittedBy", "name email") // Populate submitter details
+      .populate("submittedTo", "name email") // Populate manager details
+      .populate("projectId", "name title") // Populate project details
+      .populate("completedTasks", "title") // Populate completed tasks
+      .populate("plannedTasks", "title") // Populate planned tasks
+      .select("-__v"); // Exclude version key
+
+    res.status(200).json({
+      message: "Manager reports for today fetched successfully",
+      reports,
+    });
+  } catch (error) {
+    console.error("Error fetching manager reports:", error);
+    res
+      .status(500)
+      .json({ message: "Server error while fetching manager reports" });
   }
 };
