@@ -19,6 +19,7 @@ import notificationRoutes from './routes/notificationRoutes'
 import { errorMiddleware } from "./helper/errorMiddleware";
 import { socketHandler } from "./socket";
 import reportRoutes from "./routes/reportRoutes";
+import leaveRoutes from "./routes/leaveRoutes";
 
 
 dotenv.config();
@@ -47,7 +48,7 @@ app.use('/api', reportRoutes)
 app.use('/api', attendnaceRoutes)
 app.use('/api', taskRoutes);
 app.use('/api', notificationRoutes);
-
+app.use('/api', leaveRoutes)
 
 
 app.use(errorMiddleware);

@@ -2,6 +2,7 @@ import mongoose, { Document, Schema } from 'mongoose';
 
 interface ILeaveRequest extends Document {
   employeeId: mongoose.Types.ObjectId;
+  requestTo: mongoose.Types.ObjectId;
   leaveType: 'Sick' | 'Casual' | 'Maternity' | 'Paternity' | 'Privilege' | 'Regularization' | 'Other';
   status: 'Approve' | 'Reject' | 'Pending';
   date: Date;
@@ -13,6 +14,10 @@ const leaveSchema: Schema<ILeaveRequest> = new Schema<ILeaveRequest>({
     type: Schema.Types.ObjectId,
     ref: 'User',
     required: true, 
+  },
+  requestTo: {
+    type: Schema.Types.ObjectId,
+    ref: 'User', 
   },
   leaveType: {
     type: String,
@@ -26,6 +31,8 @@ const leaveSchema: Schema<ILeaveRequest> = new Schema<ILeaveRequest>({
   },
   date: { type: Date, required: true },
   description: { type: String }
+}, {
+  timestamps: true
 });
 
 const LeaveRequest = mongoose.model<ILeaveRequest>('LeaveRequest', leaveSchema);

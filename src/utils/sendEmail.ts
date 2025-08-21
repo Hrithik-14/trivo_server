@@ -1,30 +1,22 @@
-import nodemailer from "nodemailer";
+import nodemailer from 'nodemailer';
 
-export const sendEmail = async (
-  to: string,
-  subject: string,
-  html: string,
-  from?: string
-) => {
+export const sendEmail = async ({ from, to, subject, html }: { from: string, to: string, subject: string, html: string }) => {
   try {
     const transporter = nodemailer.createTransport({
-      service: "gmail", // or SMTP config
+      service: 'gmail',
       auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS,
       },
     });
 
-    const mailOptions = {
+    await transporter.sendMail({
       from: from || process.env.EMAIL_USER,
       to,
       subject,
       html,
-    };
-
-    await transporter.sendMail(mailOptions);
-    console.log(`✅ Email sent to ${to}`);
-  } catch (err) {
-    console.error("❌ Error sending email:", err);
+    });
+  } catch (error: any) {
+    throw new Error(`Failed to send email: ${error.message}`);
   }
 };
