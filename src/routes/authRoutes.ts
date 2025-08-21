@@ -1,9 +1,10 @@
 import express from 'express';
 import { errorHandling } from '../helper/errorMiddleware';
-import { blockUser, getAllEmployees, getAllEmployeesDetail, getAllManagers, getAllManagersDetail, getAllUsers, getUser, getUsersRegistered, loginUser, registerUser, setPassword, updateUser } from '../controllers/auth';
+import { blockUser, getAllEmployees, getAllEmployeesDetail, getAllManagers, getAllManagersDetail, getAllUsers, getmanagersEmployees, getUser, getUsersRegistered, loginUser, registerUser, setPassword, updateUser } from '../controllers/auth';
 import { upload } from '../helper/upload';
 
 import { resetPassword, sendOTP, verifyOTP } from '../controllers/otpController';
+import { authMiddleware } from '../helper/authMiddleware';
 
 
 const router = express.Router();
@@ -18,6 +19,7 @@ router.get('/managers', errorHandling(getAllManagers));
 router.get('/managersdeatil', errorHandling(getAllManagersDetail));
 router.get('/employees', errorHandling(getAllEmployees));
 router.get('/employeesdeatil', errorHandling(getAllEmployeesDetail));
+router.get('/managerEmployeesdeatil',authMiddleware, errorHandling(getmanagersEmployees));
 router.get('/users/:id', errorHandling(getUser))
 router.post('/auth/send-otp',errorHandling(sendOTP))
 router.post('/auth/verify-otp',errorHandling(verifyOTP))

@@ -3,6 +3,7 @@ import mongoose from "mongoose";
 import { createError } from "../helper/errorMiddleware"
 import Attendance from "../models/attendance";
 import { Request, Response } from "express";
+import Report from "../models/report";
 import { User } from "../models/user";
 
 interface MarkAttendanceBody {
@@ -43,11 +44,37 @@ export const markAttendance = async (req: Request<{}, {}, MarkAttendanceBody>, r
       });
     }
 
+    const officeStart = new Date(today);
+    officeStart.setHours(9, 0, 0, 0);
+
+    const officeEnd = new Date(today);
+    officeEnd.setHours(17, 0, 0, 0);
+
     if (type === 'signIn') {
       attendance.signInTime = timeStr;
-      attendance.status = 'present';
+
+      if (now > officeStart) {
+        attendance.status = 'late';
+      } else {
+        attendance.status = 'present';
+      }
     } else if (type === 'signOut') {
       attendance.signOutTime = timeStr;
+
+      if (attendance.signInTime) {
+        const [h, m, s] = attendance.signInTime.split(':').map(Number);
+        const signInDate = new Date(today);
+        signInDate.setHours(h, m, s);
+
+        const workHours = (now.getTime() - signInDate.getTime()) / (1000 * 60 * 60);
+
+        // Less than 7 hours or early leaving → halfday
+        if (workHours < 7 || now < officeEnd) {
+          attendance.status = 'halfday';
+        } else if (attendance.status !== 'late') {
+          attendance.status = 'present';
+        }
+      }
     }
 
     await attendance.save();
@@ -58,6 +85,8 @@ export const markAttendance = async (req: Request<{}, {}, MarkAttendanceBody>, r
     return res.status(500).json({ message: 'Internal server error' });
   }
 };
+
+
 
 
 
@@ -172,11 +201,67 @@ try {
   }
 }
 
+
+
+
+export const getAttendneceHistory = async (req: Request, res: Response) => {
+  const { userId } = req.params
+  const { filter } = req.query
+
+  let dateFilter: any = {}
+
+  if (filter === "thisMonth") {
+    const start = new Date(new Date().getFullYear(), new Date().getMonth(), 1)
+    const end = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0)
+    dateFilter.date = { $gte: start, $lte: end }
+  }else if (filter === 'lastMonth') {
+    const now = new Date()
+    const start = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+    const end = new Date(now.getFullYear(), now.getMonth(), 0)
+    dateFilter.date = { $gte: start, $lte: end }
+  }
+
+  const present = await Attendance.countDocuments({ employeeId: userId, status: 'present', ...dateFilter })
+  const leave = await Attendance.countDocuments({ employeeId: userId, status: 'absent', ...dateFilter })
+  const late = await Attendance.countDocuments({ employeeId: userId, status: 'late', ...dateFilter })
+  const halfday = await Attendance.countDocuments({ employeeId: userId, status: 'halfday', ...dateFilter })
+
+  const totalDays = present + leave + halfday + late
+  const attendacePercentage = totalDays > 0 ? ((present / totalDays) * 100).toFixed(0) : 0
+
+  const reportAdd = await Report.aggregate([
+    { $match: { submittedBy: new mongoose.Types.ObjectId(userId), ...(dateFilter.date ? { date: dateFilter.date } : {}) } },
+    { $addFields: { effectiveHoursNum: { $toDouble: "$effectiveHours" } } },
+    { $group: { _id: null, totalHours: { $sum: "$effectiveHoursNum" } } }
+  ])
+
+  const totlaEffectiveHours = reportAdd.length > 0 ? reportAdd[0].totalHours.toFixed(2) : 0
+
+  res.json({ present, leave, late, halfday, totalDays, attendacePercentage, totlaEffectiveHours })
+}
+
+
+
+export const getMyAttendenceHistory = async(req:Request, res:Response) => {
+  const user = req.user?.id
+  if(!user){
+    throw createError(404,"user not found")
+
+  }
+
+  const attendance = await Attendance.find({employeeId:user , status:{$ne:"present"}})
+  res.status(200).json({
+    message:"fetched successfully",
+    attendance
+  })
+}
+
+
 export const totalEmployees = async (req:Request, res:Response) => {
   const allEmployees = await User.countDocuments({role: {$ne:"admin"}})
   res.status(200).json({message:"get total employee success", allEmployees})
-  
 }
+
 
 export const statusAttendence = async (req:Request,res:Response) => {
   const startOfDay = new Date();
@@ -196,18 +281,4 @@ export const statusAttendence = async (req:Request,res:Response) => {
     presentCount
   })
   
-}
-
-export const getMyAttendenceHistory = async(req:Request, res:Response) => {
-  const user = req.user?.id
-  if(!user){
-    throw createError(404,"user not found")
-
-  }
-
-  const attendance = await Attendance.find({employeeId:user , status:{$ne:"present"}})
-  res.status(200).json({
-    message:"fetched successfully",
-    attendance
-  })
 }

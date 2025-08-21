@@ -7,7 +7,6 @@ import Attendance from "../models/attendance";
 import Task from "../models/task";
 import LeaveRequest from "../models/LeaveRequest";
 
-
 interface CreateEmployeeReportBody {
   currentProject: string;
   startTime: string;
@@ -40,11 +39,10 @@ export const createEmployReport = async (
     performance,
     challenges,
     supportNeeded,
-    
   } = req.body;
 
   try {
-    if (!id || !currentProject || !startTime || !endTime ) {
+    if (!id || !currentProject || !startTime || !endTime) {
       return next(createError(400, "Missing required fields"));
     }
 
@@ -58,7 +56,7 @@ export const createEmployReport = async (
 
     const toMinutes = (timeStr: string) => {
       const parts = timeStr.split(":").map(Number);
-      return (parts[0] || 0) * 60 + (parts[1] || 0) + ((parts[2] || 0) / 60);
+      return (parts[0] || 0) * 60 + (parts[1] || 0) + (parts[2] || 0) / 60;
     };
 
     let formattedStart = to24HourFormat(startTime);
@@ -80,7 +78,10 @@ export const createEmployReport = async (
     const reportStartMinutes = toMinutes(formattedStart);
     const reportEndMinutes = toMinutes(formattedEnd);
 
-    if (reportStartMinutes < signInMinutes || reportEndMinutes > signOutMinutes) {
+    if (
+      reportStartMinutes < signInMinutes ||
+      reportEndMinutes > signOutMinutes
+    ) {
       return next(
         createError(
           400,
@@ -89,14 +90,18 @@ export const createEmployReport = async (
       );
     }
 
-    let reportDate = new Date()
+    let reportDate = new Date();
 
-    const approvedRegularization = await LeaveRequest.findOne({employeeId: id, leaveType: 'Regularization', status: 'Approve'})
+    const approvedRegularization = await LeaveRequest.findOne({
+      employeeId: id,
+      leaveType: "Regularization",
+      status: "Approve",
+    });
 
     if (approvedRegularization) {
-      reportDate = approvedRegularization.date
-      formattedStart = '09:00'
-      formattedEnd = '17:00'
+      reportDate = approvedRegularization.date;
+      formattedStart = "09:00";
+      formattedEnd = "17:00";
     }
 
     const todayStart = new Date();
@@ -116,8 +121,7 @@ export const createEmployReport = async (
 
     const effectiveHoursCalc = (reportEndMinutes - reportStartMinutes) / 60;
 
-
-const completed = Array.isArray(completedTasks)
+    const completed = Array.isArray(completedTasks)
       ? completedTasks
           .map((t: any) =>
             mongoose.Types.ObjectId.isValid(t?.value || t)
@@ -133,7 +137,6 @@ const completed = Array.isArray(completedTasks)
         { $set: { status: "completed" } }
       );
     }
-
 
     const planned = Array.isArray(plannedTasks)
       ? plannedTasks
@@ -188,9 +191,9 @@ export const getReportsByEmployee = async (
     .populate("completedTasks", "title")
     .populate("plannedTasks", "title")
     .sort({ createdAt: -1 });
-  // if (report.length === 0) {
-  //   throw createError(404, "Reports not found");
-  // }
+  if (report.length === 0) {
+    throw createError(404, "Reports not found");
+  }
   res.status(200).json({
     message: "get report by employee successfully",
     status: "success",
@@ -290,8 +293,34 @@ export const createManagerReport = async (
     const formattedStart = to24HourFormat(startTime);
     const formattedEnd = to24HourFormat(endTime);
 
-    const effectiveHours =
-      (toMinutes(formattedEnd) - toMinutes(formattedStart)) / 60;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const attendance = await Attendance.findOne({
+      employeeId: id,
+      date: { $gte: today },
+    });
+
+    if (!attendance) {
+      return next(createError(400, "No attendance found for today"));
+    }
+
+    const signInMinutes = toMinutes(attendance.signInTime || "00:00");
+    const signOutMinutes = toMinutes(attendance.signOutTime || "23:59");
+    const reportStartMinutes = toMinutes(formattedStart);
+    const reportEndMinutes = toMinutes(formattedEnd);
+
+    if (
+      reportStartMinutes < signInMinutes ||
+      reportEndMinutes > signOutMinutes
+    ) {
+      return next(
+        createError(
+          400,
+          `Report time must be within attendance: ${attendance.signInTime} - ${attendance.signOutTime}`
+        )
+      );
+    }
 
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
@@ -304,16 +333,18 @@ export const createManagerReport = async (
       role: "manager",
       status: { $ne: "rejected" },
     });
-    const userAdmin = await User.findOne({ role: "admin" });
+
     if (existingReport) {
       return next(
         createError(400, "You can submit only one manager report per day")
       );
     }
+    const admin = await User.findOne({ role: "admin" });
+    const effectiveHours = (reportEndMinutes - reportStartMinutes) / 60;
 
     const reportData = new Report({
       submittedBy: id,
-      submittedTo: userAdmin?._id,
+      submittedTo: admin?._id,
       role: "manager",
       date: new Date(),
       startTime: formattedStart,
@@ -332,6 +363,61 @@ export const createManagerReport = async (
     console.error("Error creating manager report:", error);
     next(createError(500, "Internal server error"));
   }
+};
+
+export const getReportsByProject = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { projectId, submittedBy } = req.params;
+
+    if (!projectId || !submittedBy) {
+      throw createError(
+        400,
+        "Project ID, submittedBy and submiitedTo are required"
+      );
+    }
+
+    const reports = await Report.find({ projectId, submittedBy });
+
+    if (!reports || reports.length === 0) {
+      throw createError(404, "No reports found for this project");
+    }
+
+    res.status(200).json({
+      message: "Reports fetched successfully",
+      status: "success",
+      reports,
+      count: reports.length,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getMyFilteredReport = async (req: Request, res: Response) => {
+  const { userId } = req.params;
+  const { date } = req.query;
+
+  if (!date) throw createError(400, "Date is required");
+
+  const start = new Date(date as string);
+  start.setHours(0, 0, 0, 0);
+
+  const end = new Date(date as string);
+  end.setHours(23, 59, 59, 999);
+
+  const report = await Report.findOne({
+    submittedBy: userId,
+    createdAt: { $gte: start, $lte: end },
+  })
+    .populate("projectId", "name")
+    .populate("completedTasks", "title")
+    .populate("plannedTasks", "title");
+
+  res.json(report);
 };
 
 // import { Request, Response, NextFunction } from "express";
@@ -362,20 +448,18 @@ export const getAllManagerReports = async (
   next: NextFunction
 ) => {
   try {
-    // Get today's date range in IST
     const { start, end } = getTodayDateRange();
-
-    // Fetch reports where submittedTo is not null and date is today
+    const admin = await User.findOne({ role: "admin" });
     const reports = await Report.find({
-      submittedTo: { $ne: null }, // Manager reports
-      date: { $gte: start, $lt: end }, // Today's reports
+      submittedTo: admin?._id,
+      date: { $gte: start, $lt: end }, 
     })
-      .populate("submittedBy", "name email") // Populate submitter details
-      .populate("submittedTo", "name email") // Populate manager details
-      .populate("projectId", "name title") // Populate project details
-      .populate("completedTasks", "title") // Populate completed tasks
-      .populate("plannedTasks", "title") // Populate planned tasks
-      .select("-__v"); // Exclude version key
+      .populate("submittedBy", "name email employeeCode") 
+      .populate("submittedTo", "name email") 
+      .populate("projectId", "name title") 
+      .populate("completedTasks", "title") 
+      .populate("plannedTasks", "title") 
+      .select("-__v"); 
 
     res.status(200).json({
       message: "Manager reports for today fetched successfully",

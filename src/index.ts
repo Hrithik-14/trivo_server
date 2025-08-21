@@ -18,13 +18,14 @@ import attendnaceRoutes from './routes/attendanceRoutes';
 import { errorMiddleware } from "./helper/errorMiddleware";
 import { socketHandler } from "./socket";
 import reportRoutes from "./routes/reportRoutes";
+import leaveRoutes from "./routes/leaveRoutes";
 
 
 dotenv.config();
 connectDB();
 
 const app: Application = express();
-const port = process.env.PORT;
+const port = process.env.PORT || 3001   ;
 
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use(express.json())
@@ -45,7 +46,7 @@ app.use('/api', messageRoutes)
 app.use('/api', reportRoutes)
 app.use('/api', attendnaceRoutes)
 app.use('/api', taskRoutes);
-
+app.use('/api', leaveRoutes)
 
 
 app.use(errorMiddleware);

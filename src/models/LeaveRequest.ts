@@ -31,6 +31,8 @@ const leaveSchema: Schema<ILeaveRequest> = new Schema<ILeaveRequest>({
   },
   date: { type: Date, required: true },
   description: { type: String }
+}, {
+  timestamps: true
 });
 
 const LeaveRequest = mongoose.model<ILeaveRequest>('LeaveRequest', leaveSchema);
