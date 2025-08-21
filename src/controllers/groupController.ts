@@ -66,7 +66,7 @@ export const getUserGroups = async (req: Request, res: Response) => {
 
 export const getAllUsers = async (req: Request, res: Response) => {
     try {
-        const users = await User.find({}, "name email employeeCode");
+        const users = await User.find({}, "name email employeeCode profileImage");
         res.json(users);
     } catch (error) {
         res.status(500).json({ message: "Failed to fetch users" });

@@ -5,7 +5,6 @@ import { User } from "./models/user";
 import Notification from "./models/notification";
 import { isValidObjectId } from "mongoose";
 
-// Define interfaces for event payloads
 interface JoinGroupPayload {
   groupId: string;
 }
@@ -41,7 +40,6 @@ interface SendNotificationPayload {
   description: string;
 }
 
-// Utility function for input validation
 const validateObjectId = (id: string, field: string): void => {
   if (!id || !isValidObjectId(id)) {
     throw new Error(`Invalid ${field} provided`);
@@ -58,14 +56,12 @@ const validateString = (value: string, field: string, maxLength?: number): void 
 };
 
 export const socketHandler = (io: Server) => {
-  // Track rooms per socket for cleanup
   const socketRooms = new Map<string, Set<string>>();
-  const userSockets = new Map<string, string>(); // userId -> socketId mapping
+  const userSockets = new Map<string, string>(); 
 
   io.on("connection", (socket: Socket) => {
     console.log(`User connected: ${socket.id}`);
 
-    // ===== USER ROOM MANAGEMENT =====
     socket.on("joinUser", (userId: string) => {
       try {
         validateObjectId(userId, "userId");
@@ -85,14 +81,12 @@ export const socketHandler = (io: Server) => {
       }
     });
 
-    // ===== DIRECT CHAT =====
     socket.on("joinDirectChat", (payload: JoinDirectChatPayload) => {
       try {
         const { userId, contactId } = payload;
         validateObjectId(userId, "userId");
         validateObjectId(contactId, "contactId");
 
-        // Create a unique room ID for this direct chat
         const roomId = [userId, contactId].sort().join("-");
         socket.join(roomId);
         
@@ -112,12 +106,10 @@ export const socketHandler = (io: Server) => {
       try {
         const { senderId, recieverId, content } = payload;
 
-        // Validate inputs
         validateObjectId(senderId, "senderId");
         validateObjectId(recieverId, "recieverId");
         validateString(content, "content", 1000);
 
-        // Create and save the message
         const message = new Message({
           senderId,
           recieverId,
@@ -127,7 +119,6 @@ export const socketHandler = (io: Server) => {
 
         const savedMsg = await message.save();
         
-        // Populate sender information
         const populatedMsg = await Message.findById(savedMsg._id)
           .populate("senderId", "name email employeeCode profileImage")
           .lean();
@@ -138,17 +129,14 @@ export const socketHandler = (io: Server) => {
 
         console.log(`Direct message saved and populated:`, populatedMsg);
 
-        // Emit to both users' personal rooms
         io.to(senderId).emit("newDirectMessage", populatedMsg);
         io.to(recieverId).emit("newDirectMessage", populatedMsg);
         
-        // Also emit to the direct chat room if they're in it
         const roomId = [senderId, recieverId].sort().join("-");
         io.to(roomId).emit("newDirectMessage", populatedMsg);
 
         console.log(`Direct message sent from ${senderId} to ${recieverId}`);
         
-        // Optional: Create a notification for the receiver
         try {
           const senderUser = await User.findById(senderId).select("name").lean();
           if (senderUser) {
@@ -172,7 +160,6 @@ export const socketHandler = (io: Server) => {
           }
         } catch (notifErr) {
           console.error("Failed to create notification for direct message:", notifErr);
-          // Don't fail the message if notification fails
         }
 
       } catch (err: any) {
@@ -181,14 +168,12 @@ export const socketHandler = (io: Server) => {
       }
     });
 
-    // ===== CHAT GROUP =====
     socket.on("joinGroup", (payload: JoinGroupPayload) => {
       try {
         const { groupId } = payload;
         validateObjectId(groupId, "groupId");
 
         socket.join(groupId);
-        // Track the room
         if (!socketRooms.has(socket.id)) {
           socketRooms.set(socket.id, new Set());
         }
@@ -205,12 +190,10 @@ export const socketHandler = (io: Server) => {
       try {
         const { groupId, senderId, content } = payload;
 
-        // Validate inputs
         validateObjectId(groupId, "groupId");
         validateObjectId(senderId, "senderId");
         validateString(content, "content", 1000);
 
-        // Ensure user is in the group
         if (!socket.rooms.has(groupId)) {
           throw new Error("User is not in the specified group");
         }
@@ -239,7 +222,7 @@ export const socketHandler = (io: Server) => {
       }
     });
 
-    // ===== NOTIFICATION SYSTEM =====
+
     socket.on("joinNotificationRoom", (payload: JoinNotificationRoomPayload) => {
       try {
         const { userId } = payload;

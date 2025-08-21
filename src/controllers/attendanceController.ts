@@ -67,7 +67,6 @@ export const markAttendance = async (req: Request<{}, {}, MarkAttendanceBody>, r
 
         const workHours = (now.getTime() - signInDate.getTime()) / (1000 * 60 * 60);
 
-        // Less than 7 hours or early leaving → halfday
         if (workHours < 7 || now < officeEnd) {
           attendance.status = 'halfday';
         } else if (attendance.status !== 'late') {
