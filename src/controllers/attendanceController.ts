@@ -37,6 +37,10 @@ export const markAttendance = async (req: Request<{}, {}, MarkAttendanceBody>, r
       date: today,
     });
 
+    if (attendance && attendance.status === 'absent') {
+      return res.status(400).json({ message: 'Attendance already marked as absent' });
+    }
+
     if (!attendance) {
       attendance = new Attendance({
         employeeId: employeeObjectId,
@@ -247,7 +251,7 @@ export const getMyAttendenceHistory = async(req:Request, res:Response) => {
 
   }
 
-  const attendance = await Attendance.find({employeeId:user , status:{$ne:"present"}})
+  const attendance = await Attendance.find({employeeId:user })
   res.status(200).json({
     message:"fetched successfully",
     attendance

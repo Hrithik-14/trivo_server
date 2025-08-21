@@ -3,7 +3,7 @@ import { errorHandling } from '../helper/errorMiddleware'
 import {  createEmployReports, createManagerReport, getAllEmployeePerformance, getAllManagerReports, getMyFilteredReport, getMyReports, getReportsByEmployee, getReportsByProject, getReportStatus, updateReportStatus } from '../controllers/report'
 import { authMiddleware } from '../helper/authMiddleware'
 
-const router = express.Router()
+    const router = express.Router()
 
 router.post('/report/addReport/:id',errorHandling(createEmployReports))
 router.get('/report/getReportsByEmployee/:id',authMiddleware,errorHandling(getReportsByEmployee))
@@ -18,4 +18,4 @@ router.get("/admin/getAllManagerReports", authMiddleware,errorHandling(getAllMan
 router.get('/overall-performance', errorHandling(getAllEmployeePerformance))
 
 
-export default router
+    export default router
