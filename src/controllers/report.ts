@@ -137,7 +137,7 @@ export const createEmployReports = async (
           return next(
             createError(
               400,
-              `Report start time (${formattedStart}) cannot be before attendance sign-in time (${attendance.signInTime}) for ${reportDate.toDateString()}`
+             ` Report start time (${formattedStart}) cannot be before attendance sign-in time (${attendance.signInTime}) for ${reportDate.toDateString()}`
             )
           );
         }
@@ -146,7 +146,7 @@ export const createEmployReports = async (
           return next(
             createError(
               400,
-              `Report end time (${formattedEnd}) cannot be after attendance sign-out time (${attendance.signOutTime}) for ${reportDate.toDateString()}`
+             ` Report end time (${formattedEnd}) cannot be after attendance sign-out time (${attendance.signOutTime}) for ${reportDate.toDateString()}`
             )
           );
         }
@@ -264,7 +264,7 @@ export const updateReportStatus = async (req: Request, res: Response) => {
     }
 
     res.status(200).json({
-      message: `Report ${status} successfully`,
+      message:` Report ${status} successfully`,
       report,
     });
   } catch (error) {
@@ -330,7 +330,7 @@ export const createManagerReport = async (
       if (isNaN(date.getTime())) throw new Error(`Invalid time: ${timeStr}`);
       const hours = date.getHours().toString().padStart(2, "0");
       const minutes = date.getMinutes().toString().padStart(2, "0");
-      return `${hours}:${minutes}`;
+      return` ${hours}:${minutes}`;
     };
 
     const toMinutes = (timeStr: string) => {
@@ -365,7 +365,7 @@ export const createManagerReport = async (
       return next(
         createError(
           400,
-          `Report time must be within attendance: ${attendance.signInTime} - ${attendance.signOutTime}`
+         ` Report time must be within attendance: ${attendance.signInTime} - ${attendance.signOutTime}`
         )
       );
     }
@@ -479,4 +479,49 @@ export const getAllEmployeePerformance = async (req: Request, res: Response) => 
   }
 };
 
+// Helper function to get today's date range in IST
+const getTodayDateRange = (): { start: Date; end: Date } => {
+  const today = new Date();
+  const offset = 5.5 * 60 * 60 * 1000;
+  const istDate = new Date(today.getTime() + offset);
 
+  const start = new Date(istDate);
+  start.setHours(0, 0, 0, 0);
+
+  const end = new Date(istDate);
+  end.setHours(23, 59, 59, 999);
+
+  return { start, end };
+};
+
+// Controller to get all manager reports for today
+export const getAllManagerReports = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { start, end } = getTodayDateRange();
+    const admin = await User.findOne({ role: "admin" });
+    const reports = await Report.find({
+      submittedTo: admin?._id,
+      date: { $gte: start, $lt: end }, 
+    })
+      .populate("submittedBy", "name email employeeCode") 
+      .populate("submittedTo", "name email") 
+      .populate("projectId", "name title") 
+      .populate("completedTasks", "title") 
+      .populate("plannedTasks", "title") 
+      .select("-__v"); 
+
+    res.status(200).json({
+      message: "Manager reports for today fetched successfully",
+      reports,
+    });
+  } catch (error) {
+    console.error("Error fetching manager reports:", error);
+    res
+      .status(500)
+      .json({ message: "Server error while fetching manager reports" });
+  }
+};
