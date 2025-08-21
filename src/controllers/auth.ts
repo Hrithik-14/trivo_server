@@ -122,6 +122,8 @@ export const loginUser = async ( req: Request, res: Response, next: NextFunction
     if (!user) {
         return next(createError(404, "User not found"));
     }
+    
+    if (user.isActive === false) throw createError(403, 'You were blocked')
 
     if (!user.password) {
         return next(createError(400, "User has no password set"));
