@@ -44,7 +44,6 @@ const ReportSchema = new Schema<IReport>(
     },
     effectiveHours: {
       type: String,
-      // required: true,
       min: 0,
       default: '0'
     },
