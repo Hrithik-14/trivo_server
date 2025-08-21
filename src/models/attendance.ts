@@ -28,7 +28,7 @@ const attendanceSchema: Schema<IAttendance> = new Schema<IAttendance>({
   status: {
     type: String,
     enum: ['present', 'absent', 'late', 'halfday'],
-    default: 'present',
+    default: 'absent',
   },
 });
 

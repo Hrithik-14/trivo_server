@@ -4,6 +4,7 @@ import { createError } from "../helper/errorMiddleware"
 import Attendance from "../models/attendance";
 import { Request, Response } from "express";
 import Report from "../models/report";
+import { User } from "../models/user";
 
 interface MarkAttendanceBody {
   employeeId: string;
@@ -239,4 +240,47 @@ export const getAttendneceHistory = async (req: Request, res: Response) => {
   const totlaEffectiveHours = reportAdd.length > 0 ? reportAdd[0].totalHours.toFixed(2) : 0
 
   res.json({ present, leave, late, halfday, totalDays, attendacePercentage, totlaEffectiveHours })
+}
+
+
+
+export const getMyAttendenceHistory = async(req:Request, res:Response) => {
+  const user = req.user?.id
+  if(!user){
+    throw createError(404,"user not found")
+
+  }
+
+  const attendance = await Attendance.find({employeeId:user })
+  res.status(200).json({
+    message:"fetched successfully",
+    attendance
+  })
+}
+
+
+export const totalEmployees = async (req:Request, res:Response) => {
+  const allEmployees = await User.countDocuments({role: {$ne:"admin"}})
+  res.status(200).json({message:"get total employee success", allEmployees})
+}
+
+
+export const statusAttendence = async (req:Request,res:Response) => {
+  const startOfDay = new Date();
+  startOfDay.setHours(0,0,0,0);
+
+  const endOfDay = new Date();
+  endOfDay.setHours(23,59,59,999)
+
+  const leaveCount = await Attendance.countDocuments({status:"absent",date:{$gte:startOfDay , $lte:endOfDay}})
+  const lateCount = await Attendance.countDocuments({status:{$in:["late","halfday"]},date:{$gte:startOfDay , $lte:endOfDay}})
+  const presentCount = await Attendance.countDocuments({status:"present",date:{$gte:startOfDay , $lte:endOfDay}})
+
+  res.status(200).json({
+    message:"count set success fully",
+    leaveCount,
+    lateCount,
+    presentCount
+  })
+  
 }
