@@ -14,4 +14,5 @@ router.get('/getTotalEmployee',errorHandling(totalEmployees))
 router.get('/statusAttendence',errorHandling(statusAttendence))
 router.get('/getMyAttendenceHistory',authMiddleware,errorHandling(getMyAttendenceHistory))
 
+
 export default router

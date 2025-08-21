@@ -68,7 +68,6 @@ export const markAttendance = async (req: Request<{}, {}, MarkAttendanceBody>, r
 
         const workHours = (now.getTime() - signInDate.getTime()) / (1000 * 60 * 60);
 
-        // Less than 7 hours or early leaving → halfday
         if (workHours < 7 || now < officeEnd) {
           attendance.status = 'halfday';
         } else if (attendance.status !== 'late') {
@@ -163,15 +162,14 @@ try {
     startOfMonth.setDate(1);
     startOfMonth.setHours(0, 0, 0, 0);
 
-    const endOfMonth = new Date(startOfMonth);
-    endOfMonth.setMonth(endOfMonth.getMonth() + 1);
-    endOfMonth.setMilliseconds(-1);
+    const endOfToday =  new Date();
+    endOfToday.setHours(23, 59, 59, 999);
 
     const stats = await Attendance.aggregate([
       {
         $match: {
           employeeId: new mongoose.Types.ObjectId(employeeId),
-          date: { $gte: startOfMonth, $lte: endOfMonth },
+          date: { $gte: startOfMonth, $lte: endOfToday },
         },
       },
       {

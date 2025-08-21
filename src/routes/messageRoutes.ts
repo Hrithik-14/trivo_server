@@ -1,6 +1,5 @@
-// routes/messageRoutes.ts
 import express from "express";
-import { createGroupMessage, createMessage, getGroupMessages, getMessage, getUserConversations, markGroupMessagesAsRead } from "../controllers/messageController";
+import { createGroupMessage, createMessage, getGroupMessages, getMessage, getUserConversations, markGroupMessagesAsRead, markPersonalMessagesAsRead } from "../controllers/messageController";
 import { errorHandling } from "../helper/errorMiddleware";
 import { authMiddleware } from "../helper/authMiddleware";
 
@@ -14,6 +13,7 @@ router.get("/chat/:recieverId/messages", authMiddleware, errorHandling(getMessag
 router.post("/chat/:recieverId/messages",authMiddleware, errorHandling(createMessage));
 
 router.put("/isRead/group/:groupId", authMiddleware, errorHandling(markGroupMessagesAsRead));
+router.put("/isRead/personal/:recieverId", authMiddleware, errorHandling(markPersonalMessagesAsRead));
 
 
 export default router;

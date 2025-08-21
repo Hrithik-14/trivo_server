@@ -31,34 +31,33 @@
       completedTasks: [{ type: Schema.Types.ObjectId, ref: "Task" }],
       plannedTasks: [{ type: Schema.Types.ObjectId, ref: "Task" }],
 
-      descriptions: { type: String },
-      startTime: {
-        type: String,
-        required: true,
-        match: /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/,
-      },
-      endTime: {
-        type: String,
-        required: true,
-        match: /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/,
-      },
-      effectiveHours: {
-        type: String,
-        // required: true,
-        min: 0,
-        default: '0'
-      },
-      performance: { type: String },
-      challenges: { type: String},
-      supportNeeded: { type: String},
-      status: {
-        type: String,
-        enum: ["pending", "accepted", "rejected"],
-        default: "pending",
-      },
+    descriptions: { type: String },
+    startTime: {
+      type: String,
+      required: true,
+      match: /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/,
     },
-    { timestamps: true }
-  );
+    endTime: {
+      type: String,
+      required: true,
+      match: /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/,
+    },
+    effectiveHours: {
+      type: String,
+      min: 0,
+      default: '0'
+    },
+    performance: { type: String },
+    challenges: { type: String},
+    supportNeeded: { type: String},
+    status: {
+      type: String,
+      enum: ["pending", "accepted", "rejected"],
+      default: "pending",
+    },
+  },
+  { timestamps: true }
+);
 
   export const Report = model<IReport>("Report", ReportSchema);
   export default Report;
