@@ -5,6 +5,7 @@ import Attendance from "../models/attendance";
 import { Request, Response } from "express";
 import Report from "../models/report";
 import { User } from "../models/user";
+import nodeCron from "node-cron";
 
 interface MarkAttendanceBody {
   employeeId: string;
@@ -284,3 +285,24 @@ export const statusAttendence = async (req:Request,res:Response) => {
   })
   
 }
+
+
+
+
+
+
+const markAbsent = async () => {
+  const today = new Date()
+  const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate())
+
+  const users = await User.find()
+  for (let user of users) {
+    const attendance = await Attendance.findOne({ employeeId: user._id, date: startOfDay })
+    if (!attendance) await Attendance.create({ employeeId: user._id, date: startOfDay, status: 'absent' })
+  }
+}
+
+
+nodeCron.schedule('35 16 * * 1-5', () => {
+  markAbsent()
+})
