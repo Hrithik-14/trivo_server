@@ -1,35 +1,35 @@
-import { Schema, model, Document, Types } from "mongoose";
+  import { Schema, model, Document, Types } from "mongoose";
 
-export type ReportStatus = "pending" | "accepted" | "rejected";
+  export type ReportStatus = "pending" | "accepted" | "rejected";
 
-export interface IReport extends Document {
-  date: Date;
-  submittedBy: Types.ObjectId;
-  submittedTo:Types.ObjectId;
-  projectId: Types.ObjectId;
-  employeeId: Types.ObjectId;
-  completedTasks: Types.ObjectId;
-  plannedTasks: Types.ObjectId;
-  descriptions: string;
-  startTime: string;
-  endTime: string;
-  effectiveHours: string;
-  performance: string;
-  challenges: string;
-  supportNeeded: string;
-  status: ReportStatus;
-  createdAt: Date;
-  updatedAt: Date;
-}
+  export interface IReport extends Document {
+    date: Date;
+    submittedBy: Types.ObjectId;
+    submittedTo:Types.ObjectId;
+    projectId: Types.ObjectId;
+    employeeId: Types.ObjectId;
+    completedTasks: Types.ObjectId;
+    plannedTasks: Types.ObjectId;
+    descriptions: string;
+    startTime: string;
+    endTime: string;
+    effectiveHours: string;
+    performance: string;
+    challenges: string;
+    supportNeeded: string;
+    status: ReportStatus;
+    createdAt: Date;
+    updatedAt: Date;
+  }
 
-const ReportSchema = new Schema<IReport>(
-  {
-    date: { type: Date },
-    submittedBy: { type: Schema.Types.ObjectId, ref: "User" },
-    submittedTo:{ type: Schema.Types.ObjectId, ref: "User" },
-    projectId: { type: Schema.Types.ObjectId, ref: "Project" },
-    completedTasks: [{ type: Schema.Types.ObjectId, ref: "Task" }],
-    plannedTasks: [{ type: Schema.Types.ObjectId, ref: "Task" }],
+  const ReportSchema = new Schema<IReport>(
+    {
+      date: { type: Date },
+      submittedBy: { type: Schema.Types.ObjectId, ref: "User" },
+      submittedTo:{ type: Schema.Types.ObjectId, ref: "User" },
+      projectId: { type: Schema.Types.ObjectId, ref: "Project" },
+      completedTasks: [{ type: Schema.Types.ObjectId, ref: "Task" }],
+      plannedTasks: [{ type: Schema.Types.ObjectId, ref: "Task" }],
 
     descriptions: { type: String },
     startTime: {
@@ -59,5 +59,5 @@ const ReportSchema = new Schema<IReport>(
   { timestamps: true }
 );
 
-export const Report = model<IReport>("Report", ReportSchema);
-export default Report;
+  export const Report = model<IReport>("Report", ReportSchema);
+  export default Report;

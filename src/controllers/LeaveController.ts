@@ -8,8 +8,9 @@ import { sendEmail } from "../utils/sendEmail";
 
 export const createLeaveRequest = async (req: Request, res: Response) => {
 
-    const { date, leaveType, description, requestTo } = req.body;
+    const { date, leaveType, description } = req.body;
     const userId = req.user?.id;
+    let requestTo;
 
   const start = new Date(date);
   const end = new Date(date);
@@ -30,9 +31,23 @@ export const createLeaveRequest = async (req: Request, res: Response) => {
     const existing = await LeaveRequest.findOne({
         employeeId: userId,
         date: { $gte: start, $lt: end },
+        status: 'Approve'
     });
     if (existing) {
         return res.status(409).json({ message: "Leave already requested for this date" });
+    }
+
+    const employee = await User.findOne({ _id: userId })
+    if (!employee) throw new Error("Employee not found");
+
+    if (employee.role === 'employee') {
+        if (!employee.managerId) throw new Error("Manager ID not set for this employee");
+        requestTo = employee?.managerId
+    } else {
+        const admin = await User.findOne({ role: 'admin' })
+        if (!admin) throw new Error("Admin not found");
+    
+        requestTo = admin._id
     }
 
   const leaveRequest = {
@@ -155,18 +170,18 @@ export const getMyRequest = async (req: Request, res: Response) => {
 
 
 export const getSpecificDay = async (req: Request, res:Response) => {
-    const { date } = req.body
+    const { date } = req.query
     const userId = req.user?.id
 
-    const start = new Date(date)
-    const end = new Date(date)
+    const start = new Date(date as string)
+    const end = new Date(date as string)
     end.setDate(end.getDate() + 1)
 
-    const des = await LeaveRequest.findOne({ employeeId: userId, date: { $gte: start, $lt: end } })
+    const des = await LeaveRequest.findOne({ employeeId: userId, date: { $gte: start, $lt: end }, status: 'Approve'  })
     const dayStatus = await Attendance.findOne({ date: { $gte: start, $lt: end }, employeeId: userId })
-    if (!dayStatus) throw createError(404, 'No status found')
+    if (!dayStatus) throw createError(200, 'No status found')
 
-    res.json({dayStatus, des})
+    res.json({dayStatus, des: des || null})
 }
 
 

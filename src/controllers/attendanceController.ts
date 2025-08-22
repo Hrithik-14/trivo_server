@@ -4,6 +4,8 @@ import { createError } from "../helper/errorMiddleware"
 import Attendance from "../models/attendance";
 import { Request, Response } from "express";
 import Report from "../models/report";
+import { User } from "../models/user";
+import nodeCron from "node-cron";
 
 interface MarkAttendanceBody {
   employeeId: string;
@@ -35,6 +37,10 @@ export const markAttendance = async (req: Request<{}, {}, MarkAttendanceBody>, r
       employeeId: employeeObjectId,
       date: today,
     });
+
+    if (attendance && attendance.status === 'absent') {
+      return res.status(400).json({ message: 'Attendance already marked as absent' });
+    }
 
     if (!attendance) {
       attendance = new Attendance({
@@ -236,3 +242,67 @@ export const getAttendneceHistory = async (req: Request, res: Response) => {
 
   res.json({ present, leave, late, halfday, totalDays, attendacePercentage, totlaEffectiveHours })
 }
+
+
+
+export const getMyAttendenceHistory = async(req:Request, res:Response) => {
+  const user = req.user?.id
+  if(!user){
+    throw createError(404,"user not found")
+
+  }
+
+  const attendance = await Attendance.find({employeeId:user })
+  res.status(200).json({
+    message:"fetched successfully",
+    attendance
+  })
+}
+
+
+export const totalEmployees = async (req:Request, res:Response) => {
+  const allEmployees = await User.countDocuments({role: {$ne:"admin"}})
+  res.status(200).json({message:"get total employee success", allEmployees})
+}
+
+
+export const statusAttendence = async (req:Request,res:Response) => {
+  const startOfDay = new Date();
+  startOfDay.setHours(0,0,0,0);
+
+  const endOfDay = new Date();
+  endOfDay.setHours(23,59,59,999)
+
+  const leaveCount = await Attendance.countDocuments({status:"absent",date:{$gte:startOfDay , $lte:endOfDay}})
+  const lateCount = await Attendance.countDocuments({status:{$in:["late","halfday"]},date:{$gte:startOfDay , $lte:endOfDay}})
+  const presentCount = await Attendance.countDocuments({status:"present",date:{$gte:startOfDay , $lte:endOfDay}})
+
+  res.status(200).json({
+    message:"count set success fully",
+    leaveCount,
+    lateCount,
+    presentCount
+  })
+  
+}
+
+
+
+
+
+
+const markAbsent = async () => {
+  const today = new Date()
+  const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate())
+
+  const users = await User.find()
+  for (let user of users) {
+    const attendance = await Attendance.findOne({ employeeId: user._id, date: startOfDay })
+    if (!attendance) await Attendance.create({ employeeId: user._id, date: startOfDay, status: 'absent' })
+  }
+}
+
+
+nodeCron.schedule('35 16 * * 1-5', () => {
+  markAbsent()
+})

@@ -36,7 +36,7 @@ interface SendNotificationPayload {
   receiverId: string;
   type: string;
   action: string;
-  entityId: string;
+  entityId: string; 
   description: string;
 }
 
