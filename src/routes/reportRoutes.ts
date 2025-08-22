@@ -5,6 +5,7 @@ import { authMiddleware } from '../helper/authMiddleware'
 
     const router = express.Router()
 
+
 router.post('/report/addReport/:id',errorHandling(createEmployReports))
 router.get('/report/getReportsByEmployee/:id',authMiddleware,errorHandling(getReportsByEmployee))
 router.get("/report/my", authMiddleware, errorHandling(getMyReports));

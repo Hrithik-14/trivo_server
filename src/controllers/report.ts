@@ -6,6 +6,8 @@ import { User } from "../models/user";
 import Attendance from "../models/attendance";
 import Task, { ITask } from "../models/task";
 import LeaveRequest from "../models/LeaveRequest";
+import { sendEmail } from "../utils/sendEmail";
+import { getEmployeeReportEmail } from "./email";
 
 
 interface CreateEmployeeReportBody {
@@ -204,6 +206,39 @@ export const createEmployReports = async (
       const savedReport = await reportData.save();
       savedReports.push(savedReport);
     }
+  
+const employee = await User.findById(id).select("name email managerId");
+if (!employee || !employee.email) {
+  throw createError(400, "Employee email is missing");
+}
+
+const manager1 = await User.findById(employee.managerId).select("name email");
+if (!manager1 || !manager1.email) {
+  throw createError(400, "Manager email is missing");
+}
+
+await sendEmail({
+  from: `"${employee.name}" <${employee.email}>`,
+  to: manager.email,
+  subject: "New Employee Report Submitted",
+  html: getEmployeeReportEmail({
+    employeeName: employee.name ?? "Employee",
+    managerName: manager.name ?? "Manager",
+    reports: savedReports.map((r) => ({
+      date: new Date(r.date).toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      }),
+      startTime: r.startTime,
+      endTime: r.endTime,
+      effectiveHours: r.effectiveHours,
+      performance: r.performance,
+    })),
+  }),
+});
+
+
 
     res.status(201).json({
       message: "Employee reports created successfully",
@@ -402,6 +437,7 @@ export const createManagerReport = async (
     });
 
     await reportData.save();
+
 
     res.status(201).json({
       message: "Manager report created successfully",

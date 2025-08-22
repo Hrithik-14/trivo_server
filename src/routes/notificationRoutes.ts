@@ -6,7 +6,7 @@ import { createNotification, getNotifications, markAllAsRead, markAsRead } from 
 
 
 
-    const router = express.Router();
+  const router = express.Router();
 
   router.post("/notification", createNotification);
   router.get("/notification/:userId", getNotifications);

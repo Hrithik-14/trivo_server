@@ -15,6 +15,7 @@ import groupRoutes from './routes/groupRoutes'
 import messageRoutes from './routes/messageRoutes'
 import taskRoutes from './routes/taskRoutes';
 import attendnaceRoutes from './routes/attendanceRoutes';
+import notificationRoutes from './routes/notificationRoutes'
 import { errorMiddleware } from "./helper/errorMiddleware";
 import { socketHandler } from "./socket";
 import reportRoutes from "./routes/reportRoutes";
@@ -46,6 +47,7 @@ app.use('/api', messageRoutes)
 app.use('/api', reportRoutes)
 app.use('/api', attendnaceRoutes)
 app.use('/api', taskRoutes);
+app.use('/api', notificationRoutes);
 app.use('/api', leaveRoutes)
 
 

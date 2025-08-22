@@ -2,17 +2,20 @@ import { Request, Response } from "express";
 import LeaveRequest from "../models/LeaveRequest";
 import { createError } from "../helper/errorMiddleware";
 import Attendance from "../models/attendance";
+import { acceptedleaveRequest, getLeaveRequestEmail } from "./email";
 import { User } from "../models/user";
-
+import { sendEmail } from "../utils/sendEmail";
 
 export const createLeaveRequest = async (req: Request, res: Response) => {
-    const { leaveDate, leaveType, description } = req.body;
+
+    const { date, leaveType, description } = req.body;
     const userId = req.user?.id;
     let requestTo;
 
-    const start = new Date(leaveDate);
-    const end = new Date(leaveDate);
-    end.setDate(end.getDate() + 1);
+  const start = new Date(date);
+  const end = new Date(date);
+  end.setDate(end.getDate() + 1);
+
 
     const maxSickLeaves = 20;
     const approvedSickLeaves = await LeaveRequest.countDocuments({
@@ -47,66 +50,123 @@ export const createLeaveRequest = async (req: Request, res: Response) => {
         requestTo = admin._id
     }
 
-    const leaveRequest = {
-        employeeId: userId,
-        requestTo,
-        date: leaveDate,
+  const leaveRequest = {
+    employeeId: userId,
+    requestTo,
+    date,
+    leaveType,
+    description,
+  };
+
+  const leave = new LeaveRequest(leaveRequest);
+  await leave.save();
+
+       const employeeDetails = await User.findById(userId).select("name email managerId");
+    if (!employeeDetails || !employeeDetails.email)
+      throw createError(400, "Employee email is missing");
+
+    // Get manager details
+    const manager = await User.findById(employeeDetails.managerId).select("name email");
+    if (!manager || !manager.email)
+      throw createError(400, "Manager email is missing");
+
+   
+    await sendEmail({
+      from: `"${employeeDetails.name}" <${employeeDetails.email}>`,
+      to: manager.email,
+      subject: "New Leave Request",
+      html: getLeaveRequestEmail({
+        employeeName : employeeDetails.name ?? "Employee",
+        managerName: manager.name ?? "Manager",
         leaveType,
         description,
-    };
-
-    const leave = new LeaveRequest(leaveRequest);
-    await leave.save();
-
-    res.status(201).json({ message: "Request successful", leave, approvedSickLeaves });
+        date: new Date(date).toLocaleDateString("en-US", {
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+        }),
+      }),
+    });
+  res.status(201).json({ message: "Leave Request successfull", leave });
 };
 
+export const acceptLeaveRequest = async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const { status, date } = req.body;
+  const userId = req.user?.id;
+
+  if (!["Approve", "Reject"].includes(status))
+    throw createError(400, "Invalid status value");
 
 
 
-export const acceptLeaveRequest = async (req: Request, res: Response ) => {
-    const { id } = req.params
-    const { status, date } = req.body
-    const userId = req.user?.id
 
-    if (!['Approve', 'Reject'].includes(status)) throw createError(400, 'Invalid status value')
+  const acceptRequest = await LeaveRequest.findOneAndUpdate(
+    { _id: id, requestTo: userId },
+    { status },
+    { new: true }
+  ).populate("employeeId", "name profileImage");
 
-    const acceptRequest = await LeaveRequest.findOneAndUpdate(
-        { _id:  id, requestTo: userId },
-        { status },
-        { new: true }
-    ).populate('employeeId', 'name profileImage')
-    
-    if (!acceptRequest) throw createError(404, 'Leave request not found')
-        
-    if ( status === 'Approve' ) {
-        const attendance = new Attendance({
-            employeeId: acceptRequest.employeeId,
-            date: date,
-            status: 'absent'
-        })
-        await attendance.save()
-    }
+  if (!acceptRequest) throw createError(404, "Leave request not found");
 
-    res.status(200).json({message: `Leave request ${status} succesfully`, acceptRequest})
-}
+  if (status === "Approve") {
+    const attendance = new Attendance({
+      employeeId: acceptRequest.employeeId,
+      date: date,
+      status: "absent",
+    });
+    await attendance.save();
+  }
+   const employeeDetails = await User.findById(acceptRequest.employeeId).select(
+    "name email profileImage"
+  );
+  if (!employeeDetails || !employeeDetails.email) {
+    throw createError(400, "Employee email is missing");
+  }
 
+ 
+  const manager = await User.findById(userId).select("name email");
+  if (!manager || !manager.email) {
+    throw createError(400, "Manager email is missing");
+  }
 
+await sendEmail({
+  from: `"${manager.name}" <${manager.email}>`,         
+  to: employeeDetails.email,                            
+  subject: `Leave Request ${status}`,
+  html: acceptedleaveRequest({
+    employeeName: employeeDetails.name ?? "Employee",
+    profileImage: employeeDetails.profileImage,
+    status,
+    date,
+    managerName: manager.name || "Manager",
+  }),
+});
 
-export const getLeaveRequest = async(req: Request, res: Response) => {
-    const userId = req.user?.id
-    const request = await LeaveRequest.find({ requestTo: userId, leaveType: { $ne: 'Regularization' } }).sort({ createdAt: -1 }).populate('employeeId', 'name profileImage')
-    res.json(request)
-}
+  res
+    .status(200)
+    .json({ message: `Leave request ${status} succesfully`, acceptRequest });
+};
 
-
+export const getLeaveRequest = async (req: Request, res: Response) => {
+  const userId = req.user?.id;
+  const request = await LeaveRequest.find({
+    requestTo: userId,
+    leaveType: { $ne: "Regularization" },
+  })
+    .sort({ createdAt: -1 })
+    .populate("employeeId", "name profileImage");
+  res.json(request);
+};
 
 export const getMyRequest = async (req: Request, res: Response) => {
-    const userId = req.user?.id
-    const request = await LeaveRequest.find({ employeeId: userId, leaveType: { $ne: 'Regularization' } }).populate('employeeId', 'name profileImage')
-    res.json(request)
-}
-
+  const userId = req.user?.id;
+  const request = await LeaveRequest.find({
+    employeeId: userId,
+    leaveType: { $ne: "Regularization" },
+  }).populate("employeeId", "name profileImage");
+  res.json(request);
+};
 
 
 export const getSpecificDay = async (req: Request, res:Response) => {
@@ -126,16 +186,21 @@ export const getSpecificDay = async (req: Request, res:Response) => {
 
 
 
+
 export const getRegularizationRequest = async (req: Request, res: Response) => {
-    const userid = req.user?.id
-    const requesst = await LeaveRequest.find({ requestTo: userid, leaveType: 'Regularization' }).populate('employeeId', 'name profileImage')
-    res.json(requesst)
-}
-
-
+  const userid = req.user?.id;
+  const requesst = await LeaveRequest.find({
+    requestTo: userid,
+    leaveType: "Regularization",
+  }).populate("employeeId", "name profileImage");
+  res.json(requesst);
+};
 
 export const getMyRegularization = async (req: Request, res: Response) => {
-    const userid = req.user?.id
-    const requesst = await LeaveRequest.find({ employeeId: userid, leaveType: 'Regularization' })
-    res.json(requesst)
-}
+  const userid = req.user?.id;
+  const requesst = await LeaveRequest.find({
+    employeeId: userid,
+    leaveType: "Regularization",
+  });
+  res.json(requesst);
+};
