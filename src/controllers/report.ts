@@ -4,8 +4,10 @@ import Report from "../models/report";
 import mongoose, { Types } from "mongoose";
 import { User } from "../models/user";
 import Attendance from "../models/attendance";
-import Task from "../models/task";
+import Task, { ITask } from "../models/task";
 import LeaveRequest from "../models/LeaveRequest";
+import { sendEmail } from "../utils/sendEmail";
+import { getEmployeeReportEmail } from "./email";
 
 
 interface CreateEmployeeReportBody {
@@ -25,27 +27,23 @@ interface CreateEmployeeReportParams {
   id: string;
 }
 
-export const createEmployReport = async (
+
+export const createEmployReports = async (
   req: Request,
   res: Response,
   next: NextFunction
 ) => {
   const { id } = req.params;
-  const {
-    currentProject,
-    startTime,
-    endTime,
-    completedTasks,
-    plannedTasks,
-    performance,
-    challenges,
-    supportNeeded,
-    
-  } = req.body;
+  const reports = req.body;
+
+  if (!Array.isArray(reports) || reports.length === 0) {
+    return next(createError(400, "No reports provided or reports is not an array"));
+  }
 
   try {
-    if (!id || !currentProject || !startTime || !endTime ) {
-      return next(createError(400, "Missing required fields"));
+    const manager = await User.findById(id).populate("managerId", "name");
+    if (!manager) {
+      return next(createError(404, "User not found"));
     }
 
     const to24HourFormat = (timeStr: string) => {
@@ -58,122 +56,201 @@ export const createEmployReport = async (
 
     const toMinutes = (timeStr: string) => {
       const parts = timeStr.split(":").map(Number);
-      return (parts[0] || 0) * 60 + (parts[1] || 0) + ((parts[2] || 0) / 60);
+      return (parts[0] || 0) * 60 + (parts[1] || 0) + (parts[2] || 0) / 60;
     };
 
-    let formattedStart = to24HourFormat(startTime);
-    let formattedEnd = to24HourFormat(endTime);
+    const savedReports = [];
 
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const attendance = await Attendance.findOne({
-      employeeId: id,
-      date: { $gte: today },
-    });
+    for (const r of reports) {
+      if (!r.date) return next(createError(400, "Date is required for each report"));
+      const reportDate = new Date(r.date);
+      reportDate.setHours(0, 0, 0, 0);
 
-    if (!attendance) {
-      return next(createError(400, "No attendance found for today"));
-    }
+      const existingReport = await Report.findOne({
+        submittedBy: id,
+        date: reportDate,
+        status: { $ne: "Rejected" }
+      });
 
-    const signInMinutes = toMinutes(attendance.signInTime || "00:00");
-    const signOutMinutes = toMinutes(attendance.signOutTime || "23:59");
-    const reportStartMinutes = toMinutes(formattedStart);
-    const reportEndMinutes = toMinutes(formattedEnd);
-
-    if (reportStartMinutes < signInMinutes || reportEndMinutes > signOutMinutes) {
-      return next(
-        createError(
-          400,
-          `Report time must be within attendance: ${attendance.signInTime} - ${attendance.signOutTime}`
-        )
-      );
-    }
-
-    let reportDate = new Date()
-
-    const approvedRegularization = await LeaveRequest.findOne({employeeId: id, leaveType: 'Regularization', status: 'Approve'})
-
-    if (approvedRegularization) {
-      reportDate = approvedRegularization.date
-      formattedStart = '09:00'
-      formattedEnd = '17:00'
-    }
-
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
-    const todayEnd = new Date();
-    todayEnd.setHours(23, 59, 59, 999);
-
-    const existingReport = await Report.findOne({
-      submittedBy: id,
-      date: { $gte: todayStart, $lte: todayEnd },
-      status: { $ne: "rejected" },
-    });
-
-    if (existingReport) {
-      return next(createError(400, "You can submit only one report per day"));
-    }
-
-    const effectiveHoursCalc = (reportEndMinutes - reportStartMinutes) / 60;
-
-
-const completed = Array.isArray(completedTasks)
-      ? completedTasks
-          .map((t: any) =>
-            mongoose.Types.ObjectId.isValid(t?.value || t)
-              ? new mongoose.Types.ObjectId(t?.value || t)
-              : null
+      if (existingReport) {
+        return next(
+          createError(
+            400,
+            `Report for ${reportDate.toDateString()} already submitted. Cannot submit again unless rejected.`
           )
-          .filter(Boolean)
-      : [];
-
-    if (completed.length > 0) {
-      await Task.updateMany(
-        { _id: { $in: completed } },
-        { $set: { status: "completed" } }
-      );
+        );
+      }
     }
 
+    for (const r of reports) {
+      const {
+        currentProject,
+        startTime,
+        endTime,
+        completedTasks,
+        plannedTasks,
+        performance,
+        challenges,
+        supportNeeded,
+        date,
+      } = r;
 
-    const planned = Array.isArray(plannedTasks)
-      ? plannedTasks
-          .map((t: any) =>
-            mongoose.Types.ObjectId.isValid(t?.value || t)
-              ? new mongoose.Types.ObjectId(t?.value || t)
-              : null
-          )
-          .filter(Boolean)
-      : [];
+      if (!currentProject || !startTime || !endTime) {
+        return next(createError(400, "Missing required fields: currentProject, startTime, or endTime"));
+      }
 
-    const manager = await User.findById(id).populate("managerId", "name");
+      const reportDate = new Date(date);
+      reportDate.setHours(0, 0, 0, 0);
 
-    const reportData = new Report({
-      projectId: currentProject,
-      submittedBy: id,
-      submittedTo: manager?.managerId,
-      date: reportDate,
-      startTime: formattedStart,
-      endTime: formattedEnd,
-      effectiveHours: effectiveHoursCalc.toFixed(2),
-      completedTasks: completed,
-      plannedTasks: planned,
-      performance: performance || "",
-      challenges: challenges || "",
-      supportNeeded: supportNeeded || "",
-    });
+      let formattedStart = to24HourFormat(startTime);
+      let formattedEnd = to24HourFormat(endTime);
 
-    await reportData.save();
+      let reportTimeMinutes: number;
+      let reportTimeHours: number;
+
+      const approvedRegularization = await LeaveRequest.findOne({
+        employeeId: id,
+        leaveType: "Regularization",
+        status: "Approve",
+        date: { $gte: reportDate, $lte: new Date(reportDate.getTime() + 86400000 - 1) },
+      });
+
+      if (approvedRegularization) {
+        formattedStart = "09:00";
+        formattedEnd = "17:00";
+        reportTimeMinutes = toMinutes(formattedEnd) - toMinutes(formattedStart);
+        reportTimeHours = reportTimeMinutes / 60;
+      } else {
+        const attendance = await Attendance.findOne({
+          employeeId: id,
+          date: { $gte: reportDate, $lte: new Date(reportDate.getTime() + 86400000 - 1) },
+        });
+
+        if (!attendance) {
+          return next(createError(400, `No attendance found for ${reportDate.toDateString()}`));
+        }
+
+        const reportStartMinutes = toMinutes(formattedStart);
+        const reportEndMinutes = toMinutes(formattedEnd);
+        const signInMinutes = toMinutes(attendance.signInTime || "00:00");
+        const signOutMinutes = toMinutes(attendance.signOutTime || "23:59");
+
+        if (reportStartMinutes < signInMinutes) {
+          return next(
+            createError(
+              400,
+              `Report start time (${formattedStart}) cannot be before attendance sign-in time (${attendance.signInTime}) for ${reportDate.toDateString()}`
+            )
+          );
+        }
+
+        if (reportEndMinutes > signOutMinutes) {
+          return next(
+            createError(
+              400,
+              `Report end time (${formattedEnd}) cannot be after attendance sign-out time (${attendance.signOutTime}) for ${reportDate.toDateString()}`
+            )
+          );
+        }
+
+        reportTimeMinutes = reportEndMinutes - reportStartMinutes;
+        reportTimeHours = reportTimeMinutes / 60;
+
+        const attendanceDuration = signOutMinutes - signInMinutes;
+        if (reportTimeMinutes > attendanceDuration) {
+          return next(
+            createError(
+              400,
+              `Report time (${reportTimeHours.toFixed(2)} hours) exceeds attendance duration (${(attendanceDuration / 60).toFixed(2)} hours) for ${reportDate.toDateString()}`
+            )
+          );
+        }
+      }
+
+      const completedTaskIds: mongoose.Types.ObjectId[] = [];
+      const plannedTaskIds: mongoose.Types.ObjectId[] = [];
+
+      if (Array.isArray(completedTasks)) {
+        for (const t of completedTasks) {
+          const taskId = t?.value || t;
+          if (mongoose.Types.ObjectId.isValid(taskId)) completedTaskIds.push(new mongoose.Types.ObjectId(taskId));
+        }
+      }
+
+      if (Array.isArray(plannedTasks)) {
+        for (const t of plannedTasks) {
+          const taskId = t?.value || t;
+          if (mongoose.Types.ObjectId.isValid(taskId)) plannedTaskIds.push(new mongoose.Types.ObjectId(taskId));
+        }
+      }
+
+      if (completedTaskIds.length > 0) {
+        await Task.updateMany({ _id: { $in: completedTaskIds } }, { $set: { status: "completed" } });
+      }
+
+      const reportData = new Report({
+        projectId: currentProject,
+        submittedBy: id,
+        submittedTo: manager?.managerId,
+        date: reportDate,
+        startTime: formattedStart,
+        endTime: formattedEnd,
+        effectiveHours: reportTimeHours.toFixed(2),
+        completedTasks: completedTaskIds,
+        plannedTasks: plannedTaskIds,
+        performance: performance || "",
+        challenges: challenges || "",
+        supportNeeded: supportNeeded || "",
+      });
+
+      const savedReport = await reportData.save();
+      savedReports.push(savedReport);
+    }
+  
+const employee = await User.findById(id).select("name email managerId");
+if (!employee || !employee.email) {
+  throw createError(400, "Employee email is missing");
+}
+
+const manager1 = await User.findById(employee.managerId).select("name email");
+if (!manager1 || !manager1.email) {
+  throw createError(400, "Manager email is missing");
+}
+
+await sendEmail({
+  from: `"${employee.name}" <${employee.email}>`,
+  to: manager.email,
+  subject: "New Employee Report Submitted",
+  html: getEmployeeReportEmail({
+    employeeName: employee.name ?? "Employee",
+    managerName: manager.name ?? "Manager",
+    reports: savedReports.map((r) => ({
+      date: new Date(r.date).toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      }),
+      startTime: r.startTime,
+      endTime: r.endTime,
+      effectiveHours: r.effectiveHours,
+      performance: r.performance,
+    })),
+  }),
+});
+
 
 
     res.status(201).json({
-      message: "Employee report created successfully",
-      data: reportData,
+      message: "Employee reports created successfully",
+      data: savedReports,
     });
   } catch (error) {
-    console.error("Error creating employee report:", error);
+    console.error("Error creating employee reports:", error);
     next(createError(500, "Internal server error"));
   }
 };
+
+
 
 
 
@@ -361,6 +438,7 @@ export const createManagerReport = async (
 
     await reportData.save();
 
+
     res.status(201).json({
       message: "Manager report created successfully",
       data: reportData,
@@ -420,3 +498,21 @@ export const getMyFilteredReport = async (req: Request, res: Response) => {
 
     res.json(report)
 }
+
+
+
+export const getAllEmployeePerformance = async (req: Request, res: Response) => {
+  try {
+    const reports = await Report.find({}, { effectiveHours: 1, _id: 0 });
+    const allHours = reports.map(report => Number(report.effectiveHours));
+    const totalEffectiveHours = allHours.reduce((sum, hours) => sum + hours, 0);
+    const totalHours = reports.length * 8;
+
+    res.json({ totalEffectiveHours, totalHours });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+

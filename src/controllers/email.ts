@@ -409,6 +409,57 @@ export const getSetPassword = (name: string, setPasswordLink: string) => {
 //     html,
 //   });
 // };
+export const getEmployeeReportEmail = ({
+  employeeName,
+  managerName,
+  reports,
+}: {
+  employeeName: string;
+  managerName: string;
+  reports: {
+    date: string;
+    startTime: string;
+    endTime: string;
+    effectiveHours: string;
+    performance: string;
+  }[];
+}) => {
+  return `
+    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="font-family: Arial, sans-serif; background:#f9f9f9; padding:20px;">
+      <tr>
+        <td>
+          <h2 style="color:#333;">New Report Submitted</h2>
+          <p>Dear ${managerName},</p>
+          <p><b>${employeeName}</b> has submitted ${reports.length} report(s).</p>
+          <table width="100%" border="1" cellpadding="5" cellspacing="0" style="border-collapse: collapse; margin-top:10px;">
+            <tr style="background:#efefef;">
+              <th align="left">Date</th>
+              <th align="left">Start Time</th>
+              <th align="left">End Time</th>
+              <th align="left">Hours</th>
+              <th align="left">Performance</th>
+            </tr>
+            ${reports
+              .map(
+                (r) => `
+              <tr>
+                <td>${r.date}</td>
+                <td>${r.startTime}</td>
+                <td>${r.endTime}</td>
+                <td>${r.effectiveHours}</td>
+                <td>${r.performance || "-"}</td>
+              </tr>
+            `
+              )
+              .join("")}
+          </table>
+          <p style="margin-top:20px;">Please review them at your convenience.</p>
+        </td>
+      </tr>
+    </table>
+  `;
+};
+
 
 
 export const getLeaveRequestEmail = ({

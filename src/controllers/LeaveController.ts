@@ -7,18 +7,33 @@ import { User } from "../models/user";
 import { sendEmail } from "../utils/sendEmail";
 
 export const createLeaveRequest = async (req: Request, res: Response) => {
-  const { date, leaveType, description, requestTo } = req.body;
-  const userId = req.user?.id;
+
+    const { date, leaveType, description, requestTo } = req.body;
+    const userId = req.user?.id;
 
   const start = new Date(date);
   const end = new Date(date);
   end.setDate(end.getDate() + 1);
 
-  const existing = await LeaveRequest.findOne({
-    employeeId: userId,
-    date: { $gte: start, $lt: end },
-  });
-  if (existing) throw createError(409, "Already requested");
+
+    const maxSickLeaves = 20;
+    const approvedSickLeaves = await LeaveRequest.countDocuments({
+        employeeId: userId,
+        leaveType: "Sick",
+        status: "Approve",
+    });
+
+    if (leaveType === "Sick" && approvedSickLeaves >= maxSickLeaves) {
+        return res.status(400).json({ message: `You have already reached the limit of ${maxSickLeaves} sick leaves.`,});
+    }
+
+    const existing = await LeaveRequest.findOne({
+        employeeId: userId,
+        date: { $gte: start, $lt: end },
+    });
+    if (existing) {
+        return res.status(409).json({ message: "Leave already requested for this date" });
+    }
 
   const leaveRequest = {
     employeeId: userId,
@@ -40,7 +55,7 @@ export const createLeaveRequest = async (req: Request, res: Response) => {
     if (!manager || !manager.email)
       throw createError(400, "Manager email is missing");
 
-    // Send email
+   
     await sendEmail({
       from: `"${employeeDetails.name}" <${employeeDetails.email}>`,
       to: manager.email,
@@ -68,6 +83,9 @@ export const acceptLeaveRequest = async (req: Request, res: Response) => {
   if (!["Approve", "Reject"].includes(status))
     throw createError(400, "Invalid status value");
 
+
+
+
   const acceptRequest = await LeaveRequest.findOneAndUpdate(
     { _id: id, requestTo: userId },
     { status },
@@ -91,14 +109,14 @@ export const acceptLeaveRequest = async (req: Request, res: Response) => {
     throw createError(400, "Employee email is missing");
   }
 
-  // Manager (logged-in user)
+ 
   const manager = await User.findById(userId).select("name email");
   if (!manager || !manager.email) {
     throw createError(400, "Manager email is missing");
   }
-// Send email from manager → to employee
+
 await sendEmail({
-  from: `"${manager.name}" <${manager.email}>`,          // manager as sender
+  from: `"${manager.name}" <${manager.email}>`,         
   to: employeeDetails.email,                            
   subject: `Leave Request ${status}`,
   html: acceptedleaveRequest({
@@ -135,22 +153,24 @@ export const getMyRequest = async (req: Request, res: Response) => {
   res.json(request);
 };
 
-export const getSpecificDay = async (req: Request, res: Response) => {
-  const { date } = req.body;
-  const userId = req.user?.id;
 
-  const start = new Date(date);
-  const end = new Date(date);
-  end.setDate(end.getDate() + 1);
+export const getSpecificDay = async (req: Request, res:Response) => {
+    const { date } = req.body
+    const userId = req.user?.id
 
-  const dayStatus = await Attendance.findOne({
-    date: { $gte: start, $lt: end },
-    employeeId: userId,
-  });
-  if (!dayStatus) throw createError(404, "No status found");
+    const start = new Date(date)
+    const end = new Date(date)
+    end.setDate(end.getDate() + 1)
 
-  res.json(dayStatus);
-};
+    const des = await LeaveRequest.findOne({ employeeId: userId, date: { $gte: start, $lt: end } })
+    const dayStatus = await Attendance.findOne({ date: { $gte: start, $lt: end }, employeeId: userId })
+    if (!dayStatus) throw createError(404, 'No status found')
+
+    res.json({dayStatus, des})
+}
+
+
+
 
 export const getRegularizationRequest = async (req: Request, res: Response) => {
   const userid = req.user?.id;

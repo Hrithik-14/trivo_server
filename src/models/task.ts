@@ -6,6 +6,7 @@ export interface ITask extends Document {
   assignedTo?: mongoose.Types.ObjectId;
   projectId: mongoose.Types.ObjectId;
   batchTime?: Date;
+  estimatedHours?: number; 
 }
 
 const taskSchema: Schema<ITask> = new Schema<ITask>({
