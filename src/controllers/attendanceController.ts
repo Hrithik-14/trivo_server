@@ -275,7 +275,7 @@ export const statusAttendence = async (req:Request,res:Response) => {
 
   const leaveCount = await Attendance.countDocuments({status:"absent",date:{$gte:startOfDay , $lte:endOfDay}})
   const lateCount = await Attendance.countDocuments({status:{$in:["late","halfday"]},date:{$gte:startOfDay , $lte:endOfDay}})
-  const presentCount = await Attendance.countDocuments({status:"present",date:{$gte:startOfDay , $lte:endOfDay}})
+  const presentCount = await Attendance.countDocuments({status:{$in:["late","halfday","present"]},date:{$gte:startOfDay , $lte:endOfDay}})
 
   res.status(200).json({
     message:"count set success fully",
