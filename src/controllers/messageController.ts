@@ -94,6 +94,8 @@ export const createMessage = async (req: Request, res: Response) => {
             ? 'image'
             : fileData.type.startsWith('audio/')
             ? 'audio'
+            : fileData.type.startsWith('video/')
+            ? 'video'
             : 'document'
           : 'text'
     })

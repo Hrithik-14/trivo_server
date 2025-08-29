@@ -660,11 +660,8 @@ export const adminMail = ({
                         <tr>
                             <td style="text-align: center;">
                                 <h1 style="margin: 0; font-size: 32px; font-weight: 700; text-shadow: 0 2px 4px rgba(0,0,0,0.2);">
-                                    📢 Admin Notification
+                                    TRIVO Solutions
                                 </h1>
-                                <p style="margin: 10px 0 0 0; font-size: 18px; font-weight: 300; opacity: 0.9;">
-                                    Administrative Communication System
-                                </p>
                             </td>
                         </tr>
                     </table>
@@ -694,7 +691,7 @@ export const adminMail = ({
                             <td style="padding: 25px; text-align: center;">
                                 <div style="background: #ffffff; padding: 15px; border-radius: 8px; border: 1px solid #e2e8f0;">
                                     <label style="display: block; color: #5a6c7d; font-size: 12px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 5px;">Recipients</label>
-                                    <div style="color: #2c3e50; font-size: 16px; font-weight: 600; word-break: break-word;">${recipients}</div>
+                                    <div style="color: #2c3e50; font-size: 16px; font-weight: 600; word-break: break-word; text-transform: uppercase;">${recipients}</div>
                                 </div>
                             </td>
                         </tr>
@@ -710,7 +707,7 @@ export const adminMail = ({
                             <td style="padding: 30px;">
                                 <div style="background: #28a745; color: #ffffff; padding: 15px 25px; border-radius: 8px; display: inline-block; margin-bottom: 25px;">
                                     <h3 style="margin: 0; font-size: 18px; font-weight: 700;">
-                                        📋 Message Content
+                                        Message Content
                                     </h3>
                                 </div>
                                 <div style="color: #2c3e50; font-size: 16px; line-height: 1.8; margin: 0; white-space: pre-line;">

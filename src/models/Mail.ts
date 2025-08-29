@@ -1,21 +1,24 @@
-import mongoose, { Document, Schema } from 'mongoose';
+import mongoose, { Document, Schema, Types } from 'mongoose';
 
 interface IMail extends Document {
-    email : string[];
+    recipients: Types.ObjectId[];
     subject: string;
     content: string;
-    type: string
+    type: string;
+    createdAt: Date;
+    updatedAt: Date;
 }
-
 
 const mailSchema: Schema = new Schema<IMail>(
     {
-        email: [{type: String, required: true}],
+        recipients: [{ type: Schema.Types.ObjectId, ref: 'User', required: true }],
         subject: { type: String, required: true },
         content: { type: String, required: true },
-        type: { type: String, required: true }
-    }, { timestamps: true }
-)
+        type: { type: String, required: true },
+    },
+    { timestamps: true }
+);
 
-const Mail = mongoose.model<IMail>("Mail", mailSchema)
-export default Mail
+
+const Mail = mongoose.model<IMail>('Mail', mailSchema);
+export default Mail;
