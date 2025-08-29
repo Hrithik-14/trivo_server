@@ -159,10 +159,7 @@ export const loginUser = async ( req: Request, res: Response, next: NextFunction
 
 export const getAllUsers = async ( req: Request, res: Response, next: NextFunction) => {
     const users = await User.find();
-    res.status(200).json({
-        message: "Users fetched successfully",
-        users,
-    });
+    res.status(200).json(users);
 };
 
 
@@ -323,3 +320,6 @@ export const getUsersRegistered = async( req: Request, res: Response ) => {
 
     res.json(resData)
 }
+
+
+

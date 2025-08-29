@@ -20,8 +20,18 @@ export const getGroupMessages = async (req: Request, res: Response) => {
 export const createGroupMessage = async (req: Request, res: Response) => {
     const { groupId } = req.params;
     const { senderId, content } = req.body;
+    let fileData = null;
+    if (req.file) {
+      const cloudFile: any = req.file;
+      fileData = {
+        url: cloudFile.path,
+        name: cloudFile.originalname,
+        size: cloudFile.size,
+        type: cloudFile.mimetype
+      }
+    }
 
-    if (!content || !senderId) {
+    if (!senderId) {
         return res.status(400).json({ message: "Sender ID and content are required" });
     }
 
@@ -29,8 +39,17 @@ export const createGroupMessage = async (req: Request, res: Response) => {
         const message = new Message({
             groupId,
             senderId,
-            content,
-            isRead: false
+            content: content || null,
+            file: fileData,
+            type: fileData 
+              ? fileData.type.startsWith('image/')
+                ? 'image'
+                : fileData.type.startsWith('audio/')
+                ? 'audio'
+                : fileData.type.startsWith('video/')
+                ? 'video'
+                : 'document'
+              : 'text'
         });
 
         await message.save();
@@ -54,11 +73,31 @@ export const createGroupMessage = async (req: Request, res: Response) => {
 export const createMessage = async (req: Request, res: Response) => {
     const { recieverId } = req.params;
     const { senderId, content } = req.body;
+    let fileData = null;
+    if (req.file) {
+      const cloudFile: any = req.file;
+      fileData = {
+        url: cloudFile.path,
+        name: cloudFile.originalname,
+        size: cloudFile.size,
+        type: cloudFile.mimetype
+      }
+    }
 
     const message = new Message({
         recieverId,
         senderId,
-        content
+        content: content || null,
+        file: fileData,
+        type: fileData 
+          ? fileData.type.startsWith('image/')
+            ? 'image'
+            : fileData.type.startsWith('audio/')
+            ? 'audio'
+            : fileData.type.startsWith('video/')
+            ? 'video'
+            : 'document'
+          : 'text'
     })
     await message.save()
 
