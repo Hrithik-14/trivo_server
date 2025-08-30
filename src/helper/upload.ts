@@ -1,29 +1,39 @@
 import multer from "multer";
 import { CloudinaryStorage } from "multer-storage-cloudinary";
 import cloudinary from "../configs/cloudinary";
-import path from "path";
 
 const storage = new CloudinaryStorage({
   cloudinary,
   params: async (req, file) => {
+    let resourceType = "auto";
+
+    if (file.mimetype === "application/pdf") {
+      resourceType = "raw";
+    }
+
     return {
-      folder: "users",
-      format: path.extname(file.originalname).slice(1), 
-      transformation: [{ width: 800, height: 800, crop: "limit" }],
+      folder: "messenger",
+      resource_type: resourceType
     };
   },
 });
 
-export const upload = multer({
+export const messengerUpload = multer({
   storage,
-  limits: { fileSize: 5 * 1024 * 1024 }, 
+  limits: { fileSize: 40 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
-    const filetypes = /jpeg|jpg|png/;
-    const extname = filetypes.test(path.extname(file.originalname).toLowerCase());
-    const mimetype = filetypes.test(file.mimetype);
-    if (extname && mimetype) {
-      return cb(null, true);
+    const allowedMimes = [
+      "image/jpeg",
+      "image/png",
+      "application/pdf",
+      "audio/mpeg",
+      "audio/mp3",
+      "video/mp4",
+    ];
+    if (allowedMimes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error("Only images, pdf, audio (mp3), and video (mp4) are allowed"));
     }
-    cb(new Error("Only JPEG and PNG images are allowed"));
   },
 });

@@ -6,6 +6,8 @@ import { Request, Response } from "express";
 import Report from "../models/report";
 import { User } from "../models/user";
 import nodeCron from "node-cron";
+import Holiday from "../models/Holiday";
+import LeaveRequest from "../models/LeaveRequest";
 
 interface MarkAttendanceBody {
   employeeId: string;
@@ -273,7 +275,7 @@ export const statusAttendence = async (req:Request,res:Response) => {
 
   const leaveCount = await Attendance.countDocuments({status:"absent",date:{$gte:startOfDay , $lte:endOfDay}})
   const lateCount = await Attendance.countDocuments({status:{$in:["late","halfday"]},date:{$gte:startOfDay , $lte:endOfDay}})
-  const presentCount = await Attendance.countDocuments({status:"present",date:{$gte:startOfDay , $lte:endOfDay}})
+  const presentCount = await Attendance.countDocuments({status:{$in:["late","halfday","present"]},date:{$gte:startOfDay , $lte:endOfDay}})
 
   res.status(200).json({
     message:"count set success fully",
@@ -304,3 +306,122 @@ const markAbsent = async () => {
 nodeCron.schedule('35 16 * * 1-5', () => {
   markAbsent()
 })
+
+
+export const getAllEmployeeAttendance = async (req: Request, res: Response) => {
+  try {
+    const { date, employeeId, startDate, endDate, showAll } = req.query;
+    
+    // Build attendance filter
+    let attendanceFilter: any = {};
+    
+    // Date filtering
+    if (showAll === 'true') {
+      // No date filter - show all records
+    } else if (date) {
+      // Single date filter
+      const filterDate = new Date(date as string);
+      const startOfDay = new Date(filterDate.setHours(0, 0, 0, 0));
+      const endOfDay = new Date(filterDate.setHours(23, 59, 59, 999));
+      attendanceFilter.date = { $gte: startOfDay, $lte: endOfDay };
+    } else if (startDate && endDate) {
+      // Date range filter
+      const start = new Date(startDate as string);
+      const end = new Date(endDate as string);
+      start.setHours(0, 0, 0, 0);
+      end.setHours(23, 59, 59, 999);
+      attendanceFilter.date = { $gte: start, $lte: end };
+    } else {
+      // Default to current date
+      const today = new Date();
+      const startOfToday = new Date(today.setHours(0, 0, 0, 0));
+      const endOfToday = new Date(today.setHours(23, 59, 59, 999));
+      attendanceFilter.date = { $gte: startOfToday, $lte: endOfToday };
+    }
+    
+    // Employee filter
+    if (employeeId) {
+      attendanceFilter.employeeId = employeeId;
+    }
+
+    const allUsers = await Attendance.find(attendanceFilter)
+      .populate("employeeId", "name employeeCode profileImage")
+      .lean();
+
+    // Build leave request filter for the same date range
+    let leaveFilter: any = { status: "Approve" };
+    
+    if (showAll === 'true') {
+      // No date filter for leaves - show all
+    } else if (date) {
+      const filterDate = new Date(date as string);
+      const startOfDay = new Date(filterDate.setHours(0, 0, 0, 0));
+      const endOfDay = new Date(filterDate.setHours(23, 59, 59, 999));
+      leaveFilter.date = { $gte: startOfDay, $lte: endOfDay };
+    } else if (startDate && endDate) {
+      const start = new Date(startDate as string);
+      const end = new Date(endDate as string);
+      start.setHours(0, 0, 0, 0);
+      end.setHours(23, 59, 59, 999);
+      leaveFilter.date = { $gte: start, $lte: end };
+    } else {
+      const today = new Date();
+      const startOfToday = new Date(today.setHours(0, 0, 0, 0));
+      const endOfToday = new Date(today.setHours(23, 59, 59, 999));
+      leaveFilter.date = { $gte: startOfToday, $lte: endOfToday };
+    }
+
+    if (employeeId) {
+      leaveFilter.employeeId = employeeId;
+    }
+
+    const approvedLeaves = await LeaveRequest.find(leaveFilter).lean();
+
+    const leaveMap = new Map<string, string>();
+    approvedLeaves.forEach((leave) => {
+      const key = `${leave.employeeId.toString()}_${new Date(leave.date).toDateString()}`;
+      leaveMap.set(key, leave.description || "");
+    });
+
+    const result = allUsers.map((att) => {
+      const key = `${att.employeeId._id.toString()}_${new Date(att.date).toDateString()}`;
+      return {
+        ...att,
+        leaveDescription: leaveMap.get(key) || null,
+      };
+    });
+
+    res.json(result);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Something went wrong" });
+  }
+};
+
+
+
+export const markHolidays = async(req: Request, res: Response) => {
+  const { holiday, description } = req.body
+
+  if ( !holiday || !description ) throw createError(404, 'holiday and description not found')
+  
+  const existingholiday = await Holiday.find({ date: holiday })
+  if (existingholiday) throw createError(409, 'Already marked as a Holiday')
+
+  const attendance = new Holiday({
+    date: holiday,
+    description,
+  })
+  await attendance.save()
+
+  return res.status(201).json({
+    message: "Holiday marked successfully",
+    attendance
+  });
+}
+
+
+export const getHoliday = async (req: Request, res: Response) => {
+  const holidays = await Holiday.find()
+  res.status(200).json(holidays)
+}
