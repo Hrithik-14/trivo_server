@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import Project, { IProject } from "../models/project";
 import mongoose from "mongoose";
-import {  User } from "../models/user";
+import { User } from "../models/user";
 import Task, { ITask } from "../models/task";
 import { createError } from "../helper/errorMiddleware";
 import { Group } from "../models/Group";
@@ -28,6 +28,8 @@ interface AddManagerProjectBody {
   employeeCode: string;
 }
 
+
+
 import { Document, Types } from "mongoose";
 
 export interface IUser extends Document {
@@ -36,6 +38,8 @@ export interface IUser extends Document {
   email: string;
   employeeCode: string;
 }
+
+
 
 
 
@@ -93,7 +97,6 @@ export const addAdminProjectController = async (
   }
 };
 
-
 export const addTaskController = async (
   req: Request,
   res: Response,
@@ -103,24 +106,24 @@ export const addTaskController = async (
     const { assignments, projectId } = req.body;
 
     if (!projectId || !assignments || !Array.isArray(assignments)) {
-      return res.status(400).json({ 
-        success: false, 
-        message: "Project ID and assignments array are required" 
+      return res.status(400).json({
+        success: false,
+        message: "Project ID and assignments array are required",
       });
     }
 
     if (!mongoose.isValidObjectId(projectId)) {
-      return res.status(400).json({ 
-        success: false, 
-        message: "Invalid Project ID format" 
+      return res.status(400).json({
+        success: false,
+        message: "Invalid Project ID format",
       });
     }
 
     const project = await Project.findById(projectId);
     if (!project) {
-      return res.status(404).json({ 
-        success: false, 
-        message: "Project not found" 
+      return res.status(404).json({
+        success: false,
+        message: "Project not found",
       });
     }
 
@@ -129,56 +132,63 @@ export const addTaskController = async (
 
     for (const assignment of assignments) {
       const { employeeCode, title } = assignment;
-      
+
       if (!employeeCode || !title) {
-        return res.status(400).json({ 
-          success: false, 
-          message: "Employee code and title are required for all assignments" 
+        return res.status(400).json({
+          success: false,
+          message: "Employee code and title are required for all assignments",
         });
       }
 
       const user = await User.findOne({ employeeCode });
       if (!user) {
-        return res.status(404).json({ 
-          success: false, 
-          message: `Employee with code ${employeeCode} not found` 
+        return res.status(404).json({
+          success: false,
+          message: `Employee with code ${employeeCode} not found`,
         });
       }
 
       tasksToInsert.push({
         title: title.trim(),
-        status: 'pending',
+        status: "pending",
         projectId,
         assignedTo: user._id,
-        batchTime: commonTime
+        batchTime: commonTime,
       });
     }
 
     const savedTasks = await Task.insertMany(tasksToInsert);
-    
-    const taskIds = savedTasks.map(task => task._id as mongoose.Types.ObjectId);
+
+    const taskIds = savedTasks.map(
+      (task) => task._id as mongoose.Types.ObjectId
+    );
     project.tasks.push(...taskIds);
     await project.save();
 
-    const populatedTasks = await Task.find({ 
-      _id: { $in: taskIds } 
-    }).populate('assignedTo', 'name employeeCode');
+    const populatedTasks = await Task.find({
+      _id: { $in: taskIds },
+    }).populate("assignedTo", "name employeeCode");
 
-    res.status(201).json({ 
-      success: true, 
+    res.status(201).json({
+      success: true,
       data: populatedTasks,
       count: savedTasks.length,
-      message: `Successfully created ${savedTasks.length} tasks`
+      message: `Successfully created ${savedTasks.length} tasks`,
     });
   } catch (error) {
     console.error("Error in addTaskController:", error);
-    res.status(500).json({ 
-      success: false, 
-      message: 'Error adding tasks', 
-      error: error instanceof Error ? error.message : 'Unknown error'
+    res.status(500).json({
+      success: false,
+      message: "Error adding tasks",
+      error: error instanceof Error ? error.message : "Unknown error",
     });
   }
 };
+
+interface AddManagerProjectBody {
+  projectId: string;
+  employeeCode: string;
+}
 
 export const addManagerProjectController = async (
   req: Request<{}, {}, AddManagerProjectBody>,
@@ -188,82 +198,96 @@ export const addManagerProjectController = async (
   try {
     const { projectId, employeeCode } = req.body;
     console.log(req.body);
-    
+
+    // Validate input
     if (!projectId || !employeeCode) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         success: false,
-        message: "Project ID and employee code are required" 
+        message: "Project ID and employee code are required",
       });
     }
 
     if (!mongoose.isValidObjectId(projectId)) {
-      return res.status(400).json({ 
+      return res.status(400).json({
         success: false,
-        message: "Invalid Project ID format" 
+        message: "Invalid Project ID format",
       });
     }
 
-    const project = await Project.findById(projectId).populate("members", "_id name email");
+    // Find project and populate members.user
+    const project = await Project.findById(projectId).populate(
+      "members.user",
+      "_id name email"
+    );
     if (!project) {
-      return res.status(404).json({ 
+      return res.status(404).json({
         success: false,
-        message: "Project not found" 
+        message: "Project not found",
       });
     }
 
+    // Find employee
     const employee = await User.findOne({ employeeCode });
     if (!employee) {
-      return res.status(404).json({ 
+      return res.status(404).json({
         success: false,
-        message: "Employee not found" 
+        message: "Employee not found",
       });
     }
 
     const employeeId = employee._id as mongoose.Types.ObjectId;
 
-    const isAlreadyMember = project.members.some((member) => member._id.equals(employeeId));
-    
+    // Check if employee is already a member
+    const isAlreadyMember = project.members.some((member) =>
+      member.user._id.equals(employeeId)
+    );
+
+    // Add employee to project members if not already present
     if (!isAlreadyMember) {
-      project.members.push(employeeId);
+      project.members.push({ user: employeeId, isActive: true });
       await project.save();
     }
 
-    let group = await Group.findOne({ name: project.name });
-
+    // Handle managerId
     let managerId: mongoose.Types.ObjectId | null = null;
     if (project.managerId && mongoose.isValidObjectId(project.managerId)) {
       managerId = project.managerId as mongoose.Types.ObjectId;
 
-      if (!project.members.some((m) => m._id.equals(managerId!))) {
-        project.members.push(managerId);
+      // Add manager to members if not already present
+      if (!project.members.some((m) => m.user._id.equals(managerId!))) {
+        project.members.push({ user: managerId, isActive: true });
         await project.save();
       }
     }
 
+    // Find or create group
+    let group = await Group.findOne({ name: project.name });
+
     if (!group) {
-        const admin = await User.findOne({ role: "admin" }).select("_id");
-        if (!admin) {
-          return res.status(500).json({
-            success: false,
-            message: "Admin user not found. Cannot create group."
-          });
-        }
+      const admin = await User.findOne({ role: "admin" }).select("_id");
+      if (!admin) {
+        return res.status(500).json({
+          success: false,
+          message: "Admin user not found. Cannot create group.",
+        });
+      }
 
       group = new Group({
         name: project.name,
         members: [
-      ...project.members.map((m) => m._id),
-      ...(managerId ? [managerId] : []),
-      ],
+          ...project.members.map((m) => m.user), // Extract user ObjectIds
+          ...(managerId ? [managerId] : []),
+        ],
         createdBy: admin._id,
         groupImage: null,
       });
       await group.save();
     } else {
+      // Update group members
       const groupMemberIds = group.members.map((m) => m.toString());
       const newMembers = project.members
-        .filter((m) => !groupMemberIds.includes(m._id.toString()))
-        .map((m) => m._id as mongoose.Types.ObjectId); 
+        .filter((m) => !groupMemberIds.includes(m.user.toString()))
+        .map((m) => m.user as mongoose.Types.ObjectId);
 
       if (newMembers.length > 0) {
         group.members.push(...newMembers);
@@ -271,6 +295,7 @@ export const addManagerProjectController = async (
       }
     }
 
+    // Populate group for response
     const populatedGroup = await Group.findById(group._id)
       .populate("members", "name email")
       .populate("createdBy", "name email");
@@ -282,18 +307,14 @@ export const addManagerProjectController = async (
         : "Employee added to project successfully",
       group: populatedGroup,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error in addManagerProjectController:", error);
-    res.status(500).json({ 
+    res.status(500).json({
       success: false,
-      message: "Internal server error" 
+      message: `Internal server error: ${error.message}`,
     });
   }
 };
-
-
-
-
 
 export const toggleActiveController = async (
   req: Request,
@@ -341,23 +362,26 @@ export const getAllProject = async (
   const ongoing = await Project.countDocuments({ status: "ongoing" });
   const completed = await Project.countDocuments({ status: "completed" });
 
-    const project = await Project.find().populate('members', 'name').sort({ createdAt: -1, _id: -1 }).skip(skip).limit(limit);
-    if(!project){
-      throw createError(404, "projects not found")
-    }
-    res.status(200).json({
-      total,
-      page,
-      totalPages: Math.ceil(total / limit),
-      project,
-      stats: {
-        total: Number(total),
-        ongoing: Number(ongoing),
-        completed: Number(completed)
-      }
-    })
-}
-
+  const project = await Project.find()
+    .populate("members", "name")
+    .sort({ createdAt: -1, _id: -1 })
+    .skip(skip)
+    .limit(limit);
+  if (!project) {
+    throw createError(404, "projects not found");
+  }
+  res.status(200).json({
+    total,
+    page,
+    totalPages: Math.ceil(total / limit),
+    project,
+    stats: {
+      total: Number(total),
+      ongoing: Number(ongoing),
+      completed: Number(completed),
+    },
+  });
+};
 
 export const getProjectByManager = async (
   req: Request,
@@ -371,15 +395,25 @@ export const getProjectByManager = async (
 
     const { id } = req.params;
     console.log(req.params);
-    
-    const total = await Project.countDocuments({managerId: id});
-    const ongoing = await Project.countDocuments({managerId: id, status: 'ongoing' });
-    const completed = await Project.countDocuments({managerId: id, status: 'completed' });
+
+    const total = await Project.countDocuments({ managerId: id });
+    const ongoing = await Project.countDocuments({
+      managerId: id,
+      status: "ongoing",
+    });
+    const completed = await Project.countDocuments({
+      managerId: id,
+      status: "completed",
+    });
     if (!id || typeof id !== "string") {
       throw createError(400, "Invalid or missing manager ID");
     }
 
-    const projects: IProject[] = await Project.find({ managerId: id }).populate('members', 'name').sort({ createdAt: -1, _id: -1 }).skip(skip).limit(limit);
+    const projects: IProject[] = await Project.find({ managerId: id })
+      .populate("members", "name")
+      .sort({ createdAt: -1, _id: -1 })
+      .skip(skip)
+      .limit(limit);
 
     if (projects.length === 0) {
       throw createError(404, "No projects found for this manager");
@@ -393,8 +427,8 @@ export const getProjectByManager = async (
       stats: {
         total: Number(total),
         ongoing: Number(ongoing),
-        completed: Number(completed)
-      }
+        completed: Number(completed),
+      },
     });
   } catch (error) {
     console.error("Error fetching projects by manager:", error);
@@ -434,7 +468,7 @@ export const getProjectById = async (
     const id = req.params.id;
     const project = await Project.findById(id)
       .populate("managerId", "name profileImage employeeCode")
-      .populate("members", "name role profileImage employeeCode");
+      .populate("members.user", " name role profileImage employeeCode");
 
     if (!project) throw createError(404, "Project not found");
 
@@ -530,22 +564,19 @@ export const ongoingManagerProject = async (req: Request, res: Response) => {
   if (!id) return createError(404, "Not Found");
   const projects = await Project.find({ managerId: id, status: "ongoing" });
 
-  res.json(projects)
-}
-
-
+  res.json(projects);
+};
 
 export const getMemeberproject = async (req: Request, res: Response) => {
   try {
     const { memberId } = req.params;
-    const projects = await Project.find({ members: memberId });
+    const projects = await Project.find({ members: memberId  });
 
     res.status(200).json(projects);
   } catch (err: any) {
     res.status(500).json({ error: err.message });
   }
 };
-
 
 export const getProjectsByMember = async (req: Request, res: Response) => {
   try {
@@ -556,24 +587,72 @@ export const getProjectsByMember = async (req: Request, res: Response) => {
 
     const memberObjectId = new mongoose.Types.ObjectId(memberId);
 
-    const total = await Project.countDocuments({ members: memberObjectId })
-    const ongoing = await Project.countDocuments({members: memberObjectId, status: 'ongoing' });
-    const completed = await Project.countDocuments({members: memberObjectId, status: 'completed' });
-    const projects = await Project.find({ members: memberObjectId }).populate('members').populate('managerId') .sort({ createdAt: -1, _id: -1 }).skip(skip).limit(limit)
+    const total = await Project.countDocuments({ members: memberObjectId });
+    const ongoing = await Project.countDocuments({
+      members: memberObjectId,
+      status: "ongoing",
+    });
+    const completed = await Project.countDocuments({
+      members: memberObjectId,
+      status: "completed",
+    });
+    const projects = await Project.find({ members: memberObjectId })
+      .populate("members")
+      .populate("managerId")
+      .sort({ createdAt: -1, _id: -1 })
+      .skip(skip)
+      .limit(limit);
 
-    res.status(200).json({ 
-      total, 
-      page, 
-      totalPages: 
-      Math.ceil(total / limit),
+    res.status(200).json({
+      total,
+      page,
+      totalPages: Math.ceil(total / limit),
       stats: {
         total: Number(total),
         ongoing: Number(ongoing),
-        completed: Number(completed)
-      }, 
-      projects
+        completed: Number(completed),
+      },
+      projects,
     });
   } catch (err: any) {
     res.status(500).json({ error: err.message });
+  }
+};
+
+
+export const toggleMemberStatus = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  const { projectId, memberId } = req.params; // here memberId = members._id
+
+  try {
+    // Find project with that member subdocument
+    const project = await Project.findOne({
+      _id: projectId,
+      "members._id": memberId,
+    });
+    if (!project) {
+      return res.status(404).json({ message: "Project or member not found" });
+    }
+
+    // Find index of that subdocument by its _id
+    const memberIndex = project.members.findIndex(
+      (m) => m._id && m._id.toString() === memberId
+    );
+
+    if (memberIndex === -1) {
+      return res.status(404).json({ message: "Member not found in project" });
+    }
+
+    // Toggle isActive
+    project.members[memberIndex].isActive = !project.members[memberIndex].isActive;
+
+    await project.save();
+
+    res.json(project);
+  } catch (err) {
+    next(err);
   }
 };

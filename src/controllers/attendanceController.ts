@@ -205,8 +205,6 @@ try {
 }
 
 
-
-
 export const getAttendneceHistory = async (req: Request, res: Response) => {
   const { userId } = req.params
   const { filter } = req.query
