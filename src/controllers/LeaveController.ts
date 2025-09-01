@@ -6,6 +6,7 @@ import { acceptedleaveRequest, getLeaveRequestEmail } from "./email";
 import { User } from "../models/user";
 import { sendEmail } from "../utils/sendEmail";
 import CompOff from "../models/CompOff";
+import mongoose from "mongoose";
 
 export const createLeaveRequest = async (req: Request, res: Response) => {
 
@@ -86,7 +87,6 @@ let managerEmail: string | undefined;
 let managerName: string | undefined;
 
 if (employeeDetails.role === "employee") {
-  // Employee → get manager
   const manager = await User.findById(employeeDetails.managerId).select("name email");
   if (!manager || !manager.email) {
     throw createError(400, "Manager email is missing");
@@ -94,7 +94,6 @@ if (employeeDetails.role === "employee") {
   managerEmail = manager.email;
   managerName = manager.name;
 } else if (employeeDetails.role === "manager") {
-  // Manager → send to Admin
   const admin = await User.findOne({ role: "admin" }).select("name email");
   if (!admin || !admin.email) {
     throw createError(400, "Admin email is missing");
@@ -238,3 +237,58 @@ export const getMyRegularization = async (req: Request, res: Response) => {
 
 
 
+export const totalLeaveCount = async (req: Request, res: Response) => {
+  try {
+    const userId = req.user?.id
+    const today = new Date()
+    const year = today.getFullYear()
+
+    const startOfYear = new Date(year, 0, 1)
+    const endOfYear = new Date(year, 11, 31, 23, 59, 59)
+
+    const leaveCounts = await LeaveRequest.aggregate([
+      {
+        $match: {
+          employeeId: new mongoose.Types.ObjectId(userId),
+          status: 'Approve',
+          date: { $gte: startOfYear, $lte: endOfYear },
+        },
+      },
+      {
+        $group: {
+          _id: '$leaveType',
+          count: { $sum: 1 },
+        },
+      },
+    ])
+
+    const counts: Record<string, number> = {
+      Sick: 0,
+      Paternity: 0,
+      Maternity: 0,
+      Casual: 0,
+      Privilege: 0,
+      CompOff: 0,
+    }
+
+    leaveCounts.forEach((item) => {
+      counts[item._id] = item.count
+    })
+
+    const compOffDoc = await CompOff.findOne({ user: userId })
+    const CompOffHave = compOffDoc?.count || 0
+
+    res.json({
+      sickCount: counts.Sick,
+      PaternityCount: counts.Paternity,
+      MaternityCount: counts.Maternity,
+      CasualCount: counts.Casual,
+      PrivilegeCount: counts.Privilege,
+      CompOffCount: counts.CompOff,
+      CompOffHave,
+    })
+  } catch (error) {
+    console.error(error)
+    res.status(500).json({ message: 'Server Error' })
+  }
+}
