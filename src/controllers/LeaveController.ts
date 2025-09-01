@@ -5,15 +5,17 @@ import Attendance from "../models/attendance";
 import { acceptedleaveRequest, getLeaveRequestEmail } from "./email";
 import { User } from "../models/user";
 import { sendEmail } from "../utils/sendEmail";
+import CompOff from "../models/CompOff";
+import mongoose from "mongoose";
 
 export const createLeaveRequest = async (req: Request, res: Response) => {
 
-    const { date, leaveType, description } = req.body;
+    const { leaveDate, leaveType, description } = req.body;
     const userId = req.user?.id;
     let requestTo;
 
-  const start = new Date(date);
-  const end = new Date(date);
+  const start = new Date(leaveDate);
+  const end = new Date(leaveDate);
   end.setDate(end.getDate() + 1);
 
 
@@ -40,10 +42,24 @@ export const createLeaveRequest = async (req: Request, res: Response) => {
     const employee = await User.findOne({ _id: userId })
     if (!employee) throw new Error("Employee not found");
 
-    if (employee.role === 'employee') {
+    if(leaveType === 'CompOff') {
+
+      const totalTaken = await LeaveRequest.countDocuments({ employeeId: userId, leaveType: 'CompOff', status: 'Approve' })
+      const compOffDocs = await CompOff.find({ user: userId })
+      const totalHave = compOffDocs.reduce((sum, doc) => sum + Number(doc.count), 0);
+      if (totalHave <= totalTaken) {throw new Error("Not enough CompOff balance");}
+      const admin = await User.findOne({ role: 'admin' })
+      if (!admin) throw new Error("Admin not found");
+
+      requestTo = admin._id
+
+    } else if (employee.role === 'employee') {
+
         if (!employee.managerId) throw new Error("Manager ID not set for this employee");
         requestTo = employee?.managerId
+
     } else {
+
         const admin = await User.findOne({ role: 'admin' })
         if (!admin) throw new Error("Admin not found");
     
@@ -53,7 +69,7 @@ export const createLeaveRequest = async (req: Request, res: Response) => {
   const leaveRequest = {
     employeeId: userId,
     requestTo,
-    date,
+    date: leaveDate,
     leaveType,
     description,
   };
@@ -61,32 +77,50 @@ export const createLeaveRequest = async (req: Request, res: Response) => {
   const leave = new LeaveRequest(leaveRequest);
   await leave.save();
 
-       const employeeDetails = await User.findById(userId).select("name email managerId");
-    if (!employeeDetails || !employeeDetails.email)
-      throw createError(400, "Employee email is missing");
+const employeeDetails = await User.findById(userId).select("name email role managerId");
 
-    // Get manager details
-    const manager = await User.findById(employeeDetails.managerId).select("name email");
-    if (!manager || !manager.email)
-      throw createError(400, "Manager email is missing");
+if (!employeeDetails || !employeeDetails.email) {
+  throw createError(400, "Employee email is missing");
+}
 
-   
-    await sendEmail({
-      from: `"${employeeDetails.name}" <${employeeDetails.email}>`,
-      to: manager.email,
-      subject: "New Leave Request",
-      html: getLeaveRequestEmail({
-        employeeName : employeeDetails.name ?? "Employee",
-        managerName: manager.name ?? "Manager",
-        leaveType,
-        description,
-        date: new Date(date).toLocaleDateString("en-US", {
-          year: "numeric",
-          month: "long",
-          day: "numeric",
-        }),
-      }),
-    });
+let managerEmail: string | undefined;
+let managerName: string | undefined;
+
+if (employeeDetails.role === "employee") {
+  const manager = await User.findById(employeeDetails.managerId).select("name email");
+  if (!manager || !manager.email) {
+    throw createError(400, "Manager email is missing");
+  }
+  managerEmail = manager.email;
+  managerName = manager.name;
+} else if (employeeDetails.role === "manager") {
+  const admin = await User.findOne({ role: "admin" }).select("name email");
+  if (!admin || !admin.email) {
+    throw createError(400, "Admin email is missing");
+  }
+  managerEmail = admin.email;
+  managerName = admin.name;
+} else {
+  throw createError(400, "Leave request cannot be sent for this role");
+}
+
+await sendEmail({
+  from: `"${employeeDetails.name}" <${employeeDetails.email}>`,
+  to: managerEmail,
+  subject: "New Leave Request",
+  html: getLeaveRequestEmail({
+    employeeName: employeeDetails.name ?? "Employee",
+    managerName: managerName ?? "Manager",
+    leaveType,
+    description,
+    date: new Date(leaveDate).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    }),
+  }),
+});
+
   res.status(201).json({ message: "Leave Request successfull", leave });
 };
 
@@ -97,9 +131,6 @@ export const acceptLeaveRequest = async (req: Request, res: Response) => {
 
   if (!["Approve", "Reject"].includes(status))
     throw createError(400, "Invalid status value");
-
-
-
 
   const acceptRequest = await LeaveRequest.findOneAndUpdate(
     { _id: id, requestTo: userId },
@@ -117,31 +148,30 @@ export const acceptLeaveRequest = async (req: Request, res: Response) => {
     });
     await attendance.save();
   }
-   const employeeDetails = await User.findById(acceptRequest.employeeId).select(
+  const employeeDetails = await User.findById(acceptRequest.employeeId).select(
     "name email profileImage"
   );
   if (!employeeDetails || !employeeDetails.email) {
     throw createError(400, "Employee email is missing");
   }
 
- 
   const manager = await User.findById(userId).select("name email");
   if (!manager || !manager.email) {
     throw createError(400, "Manager email is missing");
   }
 
-await sendEmail({
-  from: `"${manager.name}" <${manager.email}>`,         
-  to: employeeDetails.email,                            
-  subject: `Leave Request ${status}`,
-  html: acceptedleaveRequest({
-    employeeName: employeeDetails.name ?? "Employee",
-    profileImage: employeeDetails.profileImage,
-    status,
-    date,
-    managerName: manager.name || "Manager",
-  }),
-});
+  await sendEmail({
+    from: `"${manager.name}" <${manager.email}>`,         
+    to: employeeDetails.email,                            
+    subject: `Leave Request ${status}`,
+    html: acceptedleaveRequest({
+      employeeName: employeeDetails.name ?? "Employee",
+      profileImage: employeeDetails.profileImage,
+      status,
+      date,
+      managerName: manager.name || "Manager",
+    }),
+  });
 
   res
     .status(200)
@@ -204,3 +234,61 @@ export const getMyRegularization = async (req: Request, res: Response) => {
   });
   res.json(requesst);
 };
+
+
+
+export const totalLeaveCount = async (req: Request, res: Response) => {
+  try {
+    const userId = req.user?.id
+    const today = new Date()
+    const year = today.getFullYear()
+
+    const startOfYear = new Date(year, 0, 1)
+    const endOfYear = new Date(year, 11, 31, 23, 59, 59)
+
+    const leaveCounts = await LeaveRequest.aggregate([
+      {
+        $match: {
+          employeeId: new mongoose.Types.ObjectId(userId),
+          status: 'Approve',
+          date: { $gte: startOfYear, $lte: endOfYear },
+        },
+      },
+      {
+        $group: {
+          _id: '$leaveType',
+          count: { $sum: 1 },
+        },
+      },
+    ])
+
+    const counts: Record<string, number> = {
+      Sick: 0,
+      Paternity: 0,
+      Maternity: 0,
+      Casual: 0,
+      Privilege: 0,
+      CompOff: 0,
+    }
+
+    leaveCounts.forEach((item) => {
+      counts[item._id] = item.count
+    })
+
+    const compOffDoc = await CompOff.findOne({ user: userId })
+    const CompOffHave = compOffDoc?.count || 0
+
+    res.json({
+      sickCount: counts.Sick,
+      PaternityCount: counts.Paternity,
+      MaternityCount: counts.Maternity,
+      CasualCount: counts.Casual,
+      PrivilegeCount: counts.Privilege,
+      CompOffCount: counts.CompOff,
+      CompOffHave,
+    })
+  } catch (error) {
+    console.error(error)
+    res.status(500).json({ message: 'Server Error' })
+  }
+}

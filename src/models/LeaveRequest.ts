@@ -3,10 +3,10 @@ import mongoose, { Document, Schema } from 'mongoose';
 interface ILeaveRequest extends Document {
   employeeId: mongoose.Types.ObjectId;
   requestTo: mongoose.Types.ObjectId;
-  leaveType: 'Sick' | 'Casual' | 'Privilege' | 'Regularization' | 'Personal';
+  leaveType: 'Sick' | 'Maternity' | 'Paternity' | 'Privilege' | 'Regularization' | 'Casual' | 'CompOff';
   status: 'Approve' | 'Reject' | 'Pending';
   date: Date;
-  description: String;
+  description: string;
 }
 
 const leaveSchema: Schema<ILeaveRequest> = new Schema<ILeaveRequest>({
@@ -21,7 +21,7 @@ const leaveSchema: Schema<ILeaveRequest> = new Schema<ILeaveRequest>({
   },
   leaveType: {
     type: String,
-    "enum": ["Sick", "Casual", "Privilege", "Regularization", "Personal"],
+    enum: ["Sick", "Casual", "Privilege", "Regularization", "CompOff", "Paternity", "Maternity"],
     required: true, 
   },
   status: { 

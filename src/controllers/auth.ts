@@ -82,18 +82,7 @@ export const registerUser = async (
     subject: "Set Your Password",
     html: getSetPassword(name, setPasswordLink),
   });
-//   const otherUsers = await User.find({ _id: { $ne: user._id } });
 
-//   for (const otherUser of otherUsers) {
-//     try {
-//       const alert = await Alert.create({
-//         message: `🎉 Welcome ${user.name} to TRIVO Solutions!`,
-//         forUser: otherUser._id,
-//       });
-//       console.log("✅ Alert Created:", alert);
-//     } catch (err) {
-//       console.error("❌ Alert creation failed:", err);
-//     }
 
 const otherUsers = await User.find({ _id: { $ne: user._id } }).select("_id");
 
