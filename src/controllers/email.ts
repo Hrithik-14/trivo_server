@@ -229,186 +229,7 @@ export const getSetPassword = (name: string, setPasswordLink: string) => {
     `
 }
 
-// export const employeeReportTemplate = (data: {
-//   employeeName: string;
-//   employeeEmail: string;
-//   project: string;
-//   startTime: string;
-//   endTime: string;
-//   effectiveHours: string;
-//   performance?: string;
-//   challenges?: string;
-//   supportNeeded?: string;
-// }) => {
 
-//   return `
-//   <table width="100%" border="0" cellspacing="0" cellpadding="10" style="font-family: Arial, sans-serif; border: 1px solid #ddd; width: 100%; min-width: 100%;">
-//   <!-- Header -->
-//   <tr>
-//     <td style="background: linear-gradient(135deg, #4a90e2, #357abd); color: white; font-size: 20px; font-weight: bold; text-align: center; padding: 20px;">
-//       📋 Timesheet Notification
-//     </td>
-//   </tr>
-  
-//   <!-- Main Content -->
-//   <tr>
-//     <td style="padding: 25px; line-height: 1.6;">
-//       <p style="font-size: 16px; color: #333; margin-bottom: 20px;">
-//         <strong>Dear Manager,</strong>
-//       </p>
-      
-//       <p style="color: #555; margin-bottom: 25px;">
-//         A timesheet has been submitted and requires your attention for review.
-//       </p>
-      
-//       <!-- Timesheet Information Section -->
-//       <div style="background-color: #f8f9fa; border-left: 4px solid #4a90e2; padding: 15px; margin-bottom: 20px;">
-//         <h3 style="color: #2c3e50; margin: 0 0 10px; font-size: 16px;">📊 Timesheet Information</h3>
-//         <p style="margin: 5px 0; color: #333;"><strong>Timesheet ID:</strong> 689cb00c93fdc2b59ac8fb2d</p>
-//         <p style="margin: 5px 0; color: #333;"><strong>Date:</strong> August 13, 2025 at 15:32:28</p>
-//         <p style="margin: 5px 0; color: #333;"><strong>Submitted By:</strong> 6892df9992698694b65b06b</p>
-//         <p style="margin: 5px 0; color: #333;"><strong>Project ID:</strong> 6896ea4f64cd7d715fa0bdea</p>
-//       </div>
-      
-//       <!-- Time Details -->
-//       <div style="background-color: #fff3e0; border-left: 4px solid #ff9800; padding: 15px; margin-bottom: 20px;">
-//         <h3 style="color: #2c3e50; margin: 0 0 10px; font-size: 16px;">⏰ Time Details</h3>
-//         <p style="margin: 8px 0; color: #333;"><strong>Start Time:</strong> 15:32</p>
-//         <p style="margin: 8px 0; color: #333;"><strong>End Time:</strong> 15:36</p>
-//         <p style="margin: 8px 0; color: #333;"><strong>Effective Hours:</strong> 0.07 hours</p>
-//       </div>
-      
-//       <!-- Task Information -->
-//       <div style="background-color: #f1f8e9; border-left: 4px solid #4caf50; padding: 15px; margin-bottom: 20px;">
-//         <h3 style="color: #2c3e50; margin: 0 0 10px; font-size: 16px;">✅ Task Information</h3>
-//         <p style="margin: 5px 0; color: #333;"><strong>Completed Tasks:</strong> 1 task completed</p>
-//         <p style="margin: 5px 0; color: #333;"><strong>Planned Tasks:</strong> 1 task planned</p>
-//       </div>
-      
-//       <!-- Performance & Status -->
-//       <div style="background-color: #fce4ec; border-left: 4px solid #e91e63; padding: 15px; margin-bottom: 25px;">
-//         <h3 style="color: #2c3e50; margin: 0 0 10px; font-size: 16px;">📈 Performance & Status</h3>
-//         <p style="margin: 5px 0; color: #333;"><strong>Performance:</strong> Not specified</p>
-//         <p style="margin: 5px 0; color: #333;"><strong>Challenges:</strong> jj</p>
-//         <p style="margin: 5px 0; color: #333;"><strong>Support Needed:</strong> dd</p>
-//         <p style="margin: 5px 0; color: #333;"><strong>Status:</strong> <span style="background-color: #d4edda; color: #155724; padding: 3px 8px; border-radius: 10px; font-size: 12px;">accepted</span></p>
-//       </div>
-      
-//       <!-- Timestamps -->
-//       <div style="background-color: #f0f0f0; border-left: 4px solid #9e9e9e; padding: 15px; margin-bottom: 20px;">
-//         <h3 style="color: #2c3e50; margin: 0 0 10px; font-size: 16px;">📅 Record Timestamps</h3>
-//         <p style="margin: 5px 0; color: #333;"><strong>Created At:</strong> August 13, 2025 at 15:32:28</p>
-//         <p style="margin: 5px 0; color: #333;"><strong>Updated At:</strong> August 13, 2025 at 16:02:44</p>
-//         <p style="margin: 5px 0; color: #333;"><strong>Version:</strong> 0</p>
-//       </div>
-      
-//       <p style="color: #333; margin-bottom: 15px;">
-//         <strong>This timesheet has been submitted for your review.</strong>
-//       </p>
-      
-//       <p style="color: #333; margin-bottom: 5px;">
-//         For any questions or clarifications, please contact:
-//       </p>
-//       <p style="color: #333; margin: 5px 0;">
-//         📧 HR Department: <a href="mailto:hr@company.com" style="color: #4a90e2;">hr@company.com</a><br/>
-//         📞 Phone: <a href="tel:+1234567890" style="color: #4a90e2;">+1 (234) 567-8900</a>
-//       </p>
-      
-//       <p style="color: #333; margin-top: 25px;">
-//         Best regards,<br/>
-//         <strong style="color: #4a90e2;">HR Management System</strong><br/>
-//         <span style="color: #888; font-size: 12px;">Automated Notification System</span>
-//       </p>
-//     </td>
-//   </tr>
-  
-//   <!-- Footer -->
-//   <tr>
-//     <td style="background-color: #f5f5f5; text-align: center; padding: 15px; font-size: 12px; color: #666; border-top: 1px solid #ddd;">
-//       <p style="margin: 0;">
-//         <strong>Company Name</strong> | HR Department<br/>
-//         123 Business Street, Suite 100, City, State 12345<br/>
-//         This is an automated email. Please do not reply directly to this message.
-//       </p>
-//     </td>
-//   </tr>
-// </table>
-//   `;
-// };
-
-
-
-// const transporter = nodemailer.createTransport({
-//   service: "Gmail", // or Outlook/SMTP
-//   auth: {
-//     user: process.env.EMAIL_USER,
-//     pass: process.env.EMAIL_PASS,
-//   },
-// });
-
-// interface LeaveRequestEmail {
-//   to: string;
-//   employeeName: string;
-//   managerName: string;
-//   leaveType: string;
-//   description: string;
-//   date: string;
-// }
-
-// export const sendLeaveRequestEmail = async ({
-//   to,
-//   employeeName,
-//   managerName,
-//   leaveType,
-//   description,
-//   date,
-// }: LeaveRequestEmail) => {
-//   const html = `
-//   <table width="100%" cellspacing="0" cellpadding="10" style="border:1px solid #ddd; font-family: Arial, sans-serif;">
-//     <thead style="background:#4CAF50; color:#fff;">
-//       <tr>
-//         <th colspan="2">Leave Request Notification</th>
-//       </tr>
-//     </thead>
-//     <tbody>
-//       <tr>
-//         <td><strong>Manager:</strong></td>
-//         <td>${managerName}</td>
-//       </tr>
-//       <tr>
-//         <td><strong>Employee:</strong></td>
-//         <td>${employeeName}</td>
-//       </tr>
-//       <tr>
-//         <td><strong>Leave Type:</strong></td>
-//         <td>${leaveType}</td>
-//       </tr>
-//       <tr>
-//         <td><strong>Date:</strong></td>
-//         <td>${new Date(date).toDateString()}</td>
-//       </tr>
-//       <tr>
-//         <td><strong>Description:</strong></td>
-//         <td>${description || "No description provided"}</td>
-//       </tr>
-//     </tbody>
-//     <tfoot style="background:#f1f1f1;">
-//       <tr>
-//         <td colspan="2" style="text-align:center;">
-//           This is an automated message. Please do not reply.
-//         </td>
-//       </tr>
-//     </tfoot>
-//   </table>
-//   `;
-
-//   await transporter.sendMail({
-//     from: `"HR System" <${process.env.EMAIL_USER}>`,
-//     to,
-//     subject: `New Leave Request from ${employeeName}`,
-//     html,
-//   });
-// };
 export const getEmployeeReportEmail = ({
   employeeName,
   managerName,
@@ -593,5 +414,110 @@ export const acceptedleaveRequest = ({
       </td>
     </tr>
   </table>
+  `;
+};
+
+export const newEmployeeWelcomeEmail = ({
+  name,
+  email,
+  employeeCode,
+  designation,
+  managerName,
+  managerEmail,
+  startDate,
+  startTime = "9:00 AM",
+  companyName = "TechCorp",
+}: {
+  name: string;
+  email: string;
+  employeeCode: string;
+  designation: string;
+  managerName?: string;
+  managerEmail?: string;
+  startDate: string;
+  startTime?: string;
+  companyName?: string;
+}) => {
+  return `
+    <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background: #f4f4f7; padding: 30px; font-family: Arial, sans-serif;">
+      <tr>
+        <td align="center">
+          <table width="600" cellpadding="0" cellspacing="0" border="0" style="background: #ffffff; border-radius: 10px; box-shadow: 0 2px 6px rgba(0,0,0,0.1); overflow: hidden;">
+            
+            <!-- Header -->
+            <tr>
+              <td style="padding: 25px; text-align: center; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #ffffff;">
+                <h2 style="margin: 0; font-size: 22px;">🎉 Welcome to ${companyName}!</h2>
+              </td>
+            </tr>
+            
+            <!-- Body -->
+            <tr>
+              <td style="padding: 25px; font-size: 15px; line-height: 1.6; color: #333;">
+                <p style="margin: 0 0 15px 0;">Dear <b>${name}</b>,</p>
+                
+                <p style="margin: 0 0 15px 0;">
+                  Welcome to ${companyName}! We are absolutely thrilled to have you join our team as 
+                  <b>${designation}</b>. Your skills and experience make you a perfect fit for our organization.
+                </p>
+
+                <div style="background: #f8f9fa; padding: 15px; border-radius: 5px; margin: 15px 0; border-left: 4px solid #667eea;">
+                  <h3 style="margin: 0 0 10px 0; color: #667eea; font-size: 16px;">📅 Your Employment Details</h3>
+                  <p style="margin: 5px 0;"><b>Employee Code:</b> ${employeeCode}</p>
+                  <p style="margin: 5px 0;"><b>Designation:</b> ${designation}</p>
+                  <p style="margin: 5px 0;"><b>Email:</b> ${email}</p>
+                  <p style="margin: 5px 0;"><b>Start Date:</b> ${startDate}</p>
+                  <p style="margin: 5px 0;"><b>Start Time:</b> ${startTime}</p>
+                  ${managerName ? `<p style="margin: 5px 0;"><b>Report to:</b> ${managerName}${managerEmail ? ` (${managerEmail})` : ''}</p>` : ''}
+                </div>
+
+                <h3 style="color: #667eea; font-size: 16px; margin: 20px 0 10px 0;">📋 What to Bring on Day One</h3>
+                <ul style="margin: 0 0 15px 20px; padding: 0;">
+                  <li style="margin-bottom: 5px;">Two forms of ID for I-9 verification</li>
+                  <li style="margin-bottom: 5px;">Direct deposit information (voided check or bank details)</li>
+                  <li style="margin-bottom: 5px;">Emergency contact information</li>
+                  <li style="margin-bottom: 5px;">Any signed offer letter documents</li>
+                </ul>
+
+                <h3 style="color: #667eea; font-size: 16px; margin: 20px 0 10px 0;">🕒 Your First Day Schedule</h3>
+                <ul style="margin: 0 0 15px 20px; padding: 0;">
+                  <li style="margin-bottom: 5px;"><b>9:00 AM</b> - Welcome meeting${managerName ? ` with ${managerName}` : ''}</li>
+                  <li style="margin-bottom: 5px;"><b>10:00 AM</b> - HR orientation and paperwork</li>
+                  <li style="margin-bottom: 5px;"><b>11:30 AM</b> - IT setup (laptop, accounts, security badges)</li>
+                  <li style="margin-bottom: 5px;"><b>1:00 PM</b> - Team lunch (our treat!)</li>
+                  <li style="margin-bottom: 5px;"><b>2:30 PM</b> - Team introductions and office tour</li>
+                </ul>
+
+                <div style="background: #e8f5e8; padding: 15px; border-radius: 5px; margin: 15px 0; border-left: 4px solid #28a745;">
+                  <h3 style="margin: 0 0 10px 0; color: #28a745; font-size: 16px;">💡 Quick Tips for Success</h3>
+                  <p style="margin: 5px 0;">• Don't hesitate to ask questions - we're here to help!</p>
+                  <p style="margin: 5px 0;">• Take notes during your first few weeks</p>
+                  <p style="margin: 5px 0;">• Join us for coffee breaks and social events</p>
+                </div>
+
+                <p style="margin: 15px 0;">
+                  If you have any questions before your start date, please reach out to our HR team.
+                </p>
+                ${managerName ? `<p style="margin: 5px 0;"><b>Your Manager:</b> ${managerName}${managerEmail ? ` - ${managerEmail}` : ''}</p>` : ''}
+                
+                <p style="margin: 20px 0 0 0;">
+                  We're confident that you'll find ${companyName} to be an exciting place to grow your career. 
+                  Once again, welcome to the team! We can't wait to see you on <b>${startDate}</b>.
+                </p>
+              </td>
+            </tr>
+            
+            <!-- Footer -->
+            <tr>
+              <td style="padding: 18px; text-align: center; font-size: 12px; color: #888; background: #f1f1f1;">
+                This is an automated welcome message from <b>${companyName}</b>.  
+                If you have any questions, please contact our HR team.
+              </td>
+            </tr>
+            
+          </table>
+        </td>
+      </tr>
+    </table>
   `;
 };
