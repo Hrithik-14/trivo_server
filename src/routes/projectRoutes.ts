@@ -16,6 +16,7 @@ import {
   projectProgressController,
   toggleActiveController,
   updateProject,
+  toggleMemberStatus,
 } from "../controllers/project";
 import { authMiddleware } from "../helper/authMiddleware";
 
@@ -32,10 +33,9 @@ router
   .patch('/projectProgress/:id', errorHandling(projectProgressController))
   .patch('/updateProject/:id', errorHandling(updateProject))
   .get('/managersongoing/:id', errorHandling(ongoingManagerProject))
-
   .get('/getProjectByEmployee/:id', errorHandling(getProjectByEmployee))
-
   .get('/member/:memberId', errorHandling(getMemeberproject))
   .get('/allProject/member/:memberId', errorHandling(getProjectsByMember))
+  .patch('/projects/:projectId/members/:memberId',errorHandling(toggleMemberStatus))
 
 export default router;
