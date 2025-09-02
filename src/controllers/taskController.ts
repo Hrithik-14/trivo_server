@@ -29,6 +29,7 @@ export const getTasksByProjectAndUser = async (
     })
     .populate('assignedTo', 'name employeeCode')
     .sort({ createdAt: -1 });
+    console.log(tasks);
 
     res.status(200).json(tasks);
   } catch (error) {

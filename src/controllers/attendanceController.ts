@@ -8,6 +8,7 @@ import { User } from "../models/user";
 import nodeCron from "node-cron";
 import Holiday from "../models/Holiday";
 import LeaveRequest from "../models/LeaveRequest";
+import CompOff from "../models/CompOff";
 
 interface MarkAttendanceBody {
   employeeId: string;
@@ -31,6 +32,7 @@ export const markAttendance = async (req: Request<{}, {}, MarkAttendanceBody>, r
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
+    const day = today.getDay()
 
     const now = new Date();
     const timeStr = now.toTimeString().split(' ')[0];
@@ -50,6 +52,18 @@ export const markAttendance = async (req: Request<{}, {}, MarkAttendanceBody>, r
         date: today,
       });
     }
+
+    let user = await CompOff.findOne({ user: employeeObjectId })
+    if (!user) {
+      user = new CompOff({
+        user: employeeObjectId,
+        count: 0
+      });
+    }
+    if (day === 0 || day === 6) {
+      user.count += 1
+    }
+    await user.save()
 
     const officeStart = new Date(today);
     officeStart.setHours(9, 0, 0, 0);
@@ -295,7 +309,7 @@ const markAbsent = async () => {
   const today = new Date()
   const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate())
 
-  const users = await User.find()
+  const users = await User.find({ role: { $ne: 'admin' } })
   for (let user of users) {
     const attendance = await Attendance.findOne({ employeeId: user._id, date: startOfDay })
     if (!attendance) await Attendance.create({ employeeId: user._id, date: startOfDay, status: 'absent' })
@@ -305,6 +319,8 @@ const markAbsent = async () => {
 
 nodeCron.schedule('35 16 * * 1-5', () => {
   markAbsent()
+}, {
+  timezone: "Asia/Kolkata"
 })
 
 
@@ -312,34 +328,27 @@ export const getAllEmployeeAttendance = async (req: Request, res: Response) => {
   try {
     const { date, employeeId, startDate, endDate, showAll } = req.query;
     
-    // Build attendance filter
     let attendanceFilter: any = {};
     
-    // Date filtering
     if (showAll === 'true') {
-      // No date filter - show all records
     } else if (date) {
-      // Single date filter
       const filterDate = new Date(date as string);
       const startOfDay = new Date(filterDate.setHours(0, 0, 0, 0));
       const endOfDay = new Date(filterDate.setHours(23, 59, 59, 999));
       attendanceFilter.date = { $gte: startOfDay, $lte: endOfDay };
     } else if (startDate && endDate) {
-      // Date range filter
       const start = new Date(startDate as string);
       const end = new Date(endDate as string);
       start.setHours(0, 0, 0, 0);
       end.setHours(23, 59, 59, 999);
       attendanceFilter.date = { $gte: start, $lte: end };
     } else {
-      // Default to current date
       const today = new Date();
       const startOfToday = new Date(today.setHours(0, 0, 0, 0));
       const endOfToday = new Date(today.setHours(23, 59, 59, 999));
       attendanceFilter.date = { $gte: startOfToday, $lte: endOfToday };
     }
     
-    // Employee filter
     if (employeeId) {
       attendanceFilter.employeeId = employeeId;
     }
@@ -348,11 +357,9 @@ export const getAllEmployeeAttendance = async (req: Request, res: Response) => {
       .populate("employeeId", "name employeeCode profileImage")
       .lean();
 
-    // Build leave request filter for the same date range
     let leaveFilter: any = { status: "Approve" };
     
     if (showAll === 'true') {
-      // No date filter for leaves - show all
     } else if (date) {
       const filterDate = new Date(date as string);
       const startOfDay = new Date(filterDate.setHours(0, 0, 0, 0));

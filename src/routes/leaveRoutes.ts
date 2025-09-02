@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { authMiddleware } from "../helper/authMiddleware";
 import { errorHandling } from "../helper/errorMiddleware";
-import { acceptLeaveRequest, createLeaveRequest, getLeaveRequest, getMyRegularization, getMyRequest, getRegularizationRequest, getSpecificDay } from "../controllers/LeaveController";
+import { acceptLeaveRequest, createLeaveRequest, getLeaveRequest, getMyRegularization, getMyRequest, getRegularizationRequest, getSpecificDay, totalLeaveCount } from "../controllers/LeaveController";
 
 const router = Router()
 
@@ -12,6 +12,7 @@ router.get('/get-my-request', authMiddleware, errorHandling(getMyRequest))
 router.get('/singleday-status', authMiddleware, errorHandling(getSpecificDay))
 router.get('/get-regularization', authMiddleware, errorHandling(getRegularizationRequest))
 router.get('/get-my-regularization', authMiddleware, errorHandling(getMyRegularization))
+router.get('/get-my-leave-count', authMiddleware, errorHandling(totalLeaveCount))
 
 
 export default router

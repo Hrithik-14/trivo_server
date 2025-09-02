@@ -190,6 +190,134 @@ interface AddManagerProjectBody {
   employeeCode: string;
 }
 
+// export const addManagerProjectController = async (
+//   req: Request<{}, {}, AddManagerProjectBody>,
+//   res: Response,
+//   next: NextFunction
+// ) => {
+//   try {
+//     const { projectId, employeeCode } = req.body;
+//     console.log(req.body);
+
+//     // Validate input
+//     if (!projectId || !employeeCode) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Project ID and employee code are required",
+//       });
+//     }
+
+//     if (!mongoose.isValidObjectId(projectId)) {
+//       return res.status(400).json({
+//         success: false,
+//         message: "Invalid Project ID format",
+//       });
+//     }
+
+//     // Find project and populate members.user
+//     const project = await Project.findById(projectId).populate(
+//       "members.user",
+//       "_id name email"
+//     );
+//     if (!project) {
+//       return res.status(404).json({
+//         success: false,
+//         message: "Project not found",
+//       });
+//     }
+
+//     // Find employee
+//     const employee = await User.findOne({ employeeCode });
+//     if (!employee) {
+//       return res.status(404).json({
+//         success: false,
+//         message: "Employee not found",
+//       });
+//     }
+
+//     const employeeId = employee._id as mongoose.Types.ObjectId;
+
+//     // Check if employee is already a member
+//     const isAlreadyMember = project.members.some((member) =>
+//       member.user._id.equals(employeeId)
+//     );
+
+//     // Add employee to project members if not already present
+//     if (!isAlreadyMember) {
+//       project.members.push({ user: employeeId, isActive: true });
+//       await project.save();
+//     }
+
+//     // Handle managerId
+//     let managerId: mongoose.Types.ObjectId | null = null;
+//     if (project.managerId && mongoose.isValidObjectId(project.managerId)) {
+//       managerId = project.managerId as mongoose.Types.ObjectId;
+
+//       // Add manager to members if not already present
+//       if (!project.members.some((m) => m.user._id.equals(managerId!))) {
+//         project.members.push({ user: managerId, isActive: true });
+//         await project.save();
+//       }
+//     }
+
+//     // Find or create group
+//     let group = await Group.findOne({ name: project.name });
+
+//     if (!group) {
+//       const admin = await User.findOne({ role: "admin" }).select("_id");
+//       if (!admin) {
+//         return res.status(500).json({
+//           success: false,
+//           message: "Admin user not found. Cannot create group.",
+//         });
+//       }
+
+//       group = new Group({
+//         name: project.name,
+//         members: [
+//           ...project.members.map((m) => m.user), // Extract user ObjectIds
+//           ...(managerId ? [managerId] : []),
+//         ],
+//         createdBy: admin._id,
+//         groupImage: null,
+//       });
+//       await group.save();
+//     } else {
+//       // Update group members
+//       const groupMemberIds = group.members.map((m) => m.toString());
+//       const newMembers = project.members
+//         .filter((m) => !groupMemberIds.includes(m.user.toString()))
+//         .map((m) => m.user as mongoose.Types.ObjectId);
+
+//       if (newMembers.length > 0) {
+//         group.members.push(...newMembers);
+//         await group.save();
+//       }
+//     }
+
+//     // Populate group for response
+//     const populatedGroup = await Group.findById(group._id)
+//       .populate("members", "name email")
+//       .populate("createdBy", "name email");
+
+//     res.status(200).json({
+//       success: true,
+//       message: isAlreadyMember
+//         ? "Employee is already a project member"
+//         : "Employee added to project successfully",
+//       group: populatedGroup,
+//     });
+//   } catch (error: any) {
+//     console.error("Error in addManagerProjectController:", error);
+//     res.status(500).json({
+//       success: false,
+//       message: `Internal server error: ${error.message}`,
+//     });
+//   }
+// };
+
+
+
 export const addManagerProjectController = async (
   req: Request<{}, {}, AddManagerProjectBody>,
   res: Response,
@@ -197,32 +325,28 @@ export const addManagerProjectController = async (
 ) => {
   try {
     const { projectId, employeeCode } = req.body;
-    console.log(req.body);
 
     // Validate input
     if (!projectId || !employeeCode) {
       return res.status(400).json({
         success: false,
-        message: "Project ID and employee code are required",
+        message: 'Project ID and employee code are required',
       });
     }
 
     if (!mongoose.isValidObjectId(projectId)) {
       return res.status(400).json({
         success: false,
-        message: "Invalid Project ID format",
+        message: 'Invalid Project ID format',
       });
     }
 
     // Find project and populate members.user
-    const project = await Project.findById(projectId).populate(
-      "members.user",
-      "_id name email"
-    );
+    const project = await Project.findById(projectId).populate('members.user', '_id name email employeeCode');
     if (!project) {
       return res.status(404).json({
         success: false,
-        message: "Project not found",
+        message: 'Project not found',
       });
     }
 
@@ -231,91 +355,86 @@ export const addManagerProjectController = async (
     if (!employee) {
       return res.status(404).json({
         success: false,
-        message: "Employee not found",
+        message: 'Employee not found',
       });
     }
 
-    const employeeId = employee._id as mongoose.Types.ObjectId;
+    const employeeId = employee._id;
+
+    // Check for invalid member entries and filter them
+    const validMembers = project.members.filter((member) => member.user && mongoose.isValidObjectId(member.user._id));
+    if (project.members.length !== validMembers.length) {
+      console.warn(`Project ${projectId} has ${project.members.length - validMembers.length} invalid member entries.`);
+      project.members = validMembers; // Clean up invalid members
+      await project.save(); // Save cleaned project
+    }
 
     // Check if employee is already a member
     const isAlreadyMember = project.members.some((member) =>
-      member.user._id.equals(employeeId)
+      member.user && member.user._id.equals(employeeId)
     );
 
-    // Add employee to project members if not already present
-    if (!isAlreadyMember) {
-      project.members.push({ user: employeeId, isActive: true });
-      await project.save();
+    if (isAlreadyMember) {
+      return res.status(200).json({
+        success: true,
+        message: 'Employee is already a project member',
+        group: null,
+      });
     }
 
-    // Handle managerId
-    let managerId: mongoose.Types.ObjectId | null = null;
-    if (project.managerId && mongoose.isValidObjectId(project.managerId)) {
-      managerId = project.managerId as mongoose.Types.ObjectId;
-
-      // Add manager to members if not already present
-      if (!project.members.some((m) => m.user._id.equals(managerId!))) {
-        project.members.push({ user: managerId, isActive: true });
-        await project.save();
-      }
-    }
+    // Add employee to project members
+    project.members.push({ user: employeeId, isActive: true });
+    await project.save();
 
     // Find or create group
     let group = await Group.findOne({ name: project.name });
 
     if (!group) {
-      const admin = await User.findOne({ role: "admin" }).select("_id");
+      const admin = await User.findOne({ role: 'admin' }).select('_id');
       if (!admin) {
         return res.status(500).json({
           success: false,
-          message: "Admin user not found. Cannot create group.",
+          message: 'Admin user not found. Cannot create group.',
         });
       }
 
       group = new Group({
         name: project.name,
         members: [
-          ...project.members.map((m) => m.user), // Extract user ObjectIds
-          ...(managerId ? [managerId] : []),
+          ...project.members.map((m) => m.user),
+          project.managerId, // Include manager
         ],
         createdBy: admin._id,
         groupImage: null,
       });
       await group.save();
     } else {
-      // Update group members
+      // Update group members if employee is not already included
       const groupMemberIds = group.members.map((m) => m.toString());
-      const newMembers = project.members
-        .filter((m) => !groupMemberIds.includes(m.user.toString()))
-        .map((m) => m.user as mongoose.Types.ObjectId);
-
-      if (newMembers.length > 0) {
-        group.members.push(...newMembers);
+      if (!groupMemberIds.includes(employeeId.toString())) {
+        group.members.push(employeeId);
         await group.save();
       }
     }
 
     // Populate group for response
     const populatedGroup = await Group.findById(group._id)
-      .populate("members", "name email")
-      .populate("createdBy", "name email");
+      .populate('members', 'name email')
+      .populate('createdBy', 'name email');
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
-      message: isAlreadyMember
-        ? "Employee is already a project member"
-        : "Employee added to project successfully",
+      message: 'Employee added to project successfully',
       group: populatedGroup,
     });
   } catch (error: any) {
-    console.error("Error in addManagerProjectController:", error);
-    res.status(500).json({
+    console.error('Error in addManagerProjectController:', error);
+    return res.status(500).json({
       success: false,
       message: `Internal server error: ${error.message}`,
     });
   }
 };
-
 export const toggleActiveController = async (
   req: Request,
   res: Response,
