@@ -465,9 +465,6 @@ export const getReportsByProject = async (
 
     const reports = await Report.find({ projectId, submittedBy });
 
-    if (!reports || reports.length === 0) {
-      throw createError(404, "No reports found for this project");
-    }
 
     res.status(200).json({
       message: "Reports fetched successfully",

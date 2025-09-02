@@ -1,15 +1,20 @@
 import mongoose, { Document, Schema } from 'mongoose';
 
+interface Member {
+  _id?: mongoose.Types.ObjectId
+  user:mongoose.Types.ObjectId
+  isActive:boolean
+}
 export interface IProject extends Document {
   _id: mongoose.Types.ObjectId;
   name: string;
   description?: string;
   startDate: Date;
   endDate?: Date;
-  isActive: boolean; 
-  managerId: mongoose.Types.ObjectId;
+  isActive: boolean;
+  managerId: mongoose.Types.ObjectId; // Changed to array
   status: 'ongoing' | 'completed';
-  members: mongoose.Types.ObjectId[];
+  members: Member[];
   tasks: mongoose.Types.ObjectId[];
   client: string;
   clientEmail?: string;
@@ -24,7 +29,7 @@ const projectSchema: Schema<IProject> = new Schema<IProject>({
   },
   description: {
     type: String,
-    trim: true, 
+    trim: true,
   },
   startDate: {
     type: Date,
@@ -35,23 +40,30 @@ const projectSchema: Schema<IProject> = new Schema<IProject>({
   },
   isActive: {
     type: Boolean,
-    default: true, 
+    default: true,
   },
-  managerId: {
-    type: Schema.Types.ObjectId,
-    ref: 'User',
-    required: true,
-  },
+  managerId: 
+    {
+      type: Schema.Types.ObjectId,
+      ref: 'User',
+      required: true, 
+    },
   status: {
     type: String,
     enum: ['ongoing', 'completed'],
     default: 'ongoing',
   },
   members: [
-    {
+{    
+  user:{
       type: Schema.Types.ObjectId,
       ref: 'User',
     },
+    isActive: {
+      type: Boolean,
+      default: true,
+    }
+  }
   ],
   tasks: [
     {
@@ -62,11 +74,11 @@ const projectSchema: Schema<IProject> = new Schema<IProject>({
   client: {
     type: String,
     required: true,
-    trim: true, 
+    trim: true,
   },
   clientEmail: {
     type: String,
-    match: [/^[\w-\.]+@([\w-]+\.)+[\w-]{2,}$/, 'Please enter a valid email address'], 
+    match: [/^[\w-\.]+@([\w-]+\.)+[\w-]{2,}$/, 'Please enter a valid email address'],
   },
 });
 
