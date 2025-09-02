@@ -468,6 +468,7 @@ export const getProjectById = async (
     const id = req.params.id;
     const project = await Project.findById(id)
       .populate("managerId", "name profileImage employeeCode")
+      // .populate("members")
       .populate("members.user", " name role profileImage employeeCode");
 
     if (!project) throw createError(404, "Project not found");
@@ -479,7 +480,7 @@ export const getProjectById = async (
         : null,
       endDate: project.endDate ? new Date(project.endDate).toISOString() : null,
     };
-
+console.log("formattedProject", formattedProject);
     res.status(200).json(formattedProject);
   } catch (error) {
     next(error);

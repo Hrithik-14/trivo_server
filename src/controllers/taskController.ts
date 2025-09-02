@@ -11,29 +11,26 @@ export const getTasksByProjectAndUser = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const { projectId, userId } = req.params;
+    const { projectId, memberId } = req.params;
+          console.log(projectId, '||', memberId);
 
-    if (!projectId || !userId) {
+
+    if (!projectId || !memberId) {
       throw createError(400, "Project ID and User ID are required");
     }
 
-    if (!mongoose.isValidObjectId(projectId) || !mongoose.isValidObjectId(userId)) {
+    if (!mongoose.isValidObjectId(projectId) || !mongoose.isValidObjectId(memberId)) {
       throw createError(400, "Invalid Project ID or User ID format");
     }
 
     const tasks = await Task.find({
       projectId,
-      assignedTo: userId,
-      status: "pending",
+      assignedTo: memberId,
     })
     .populate('assignedTo', 'name employeeCode')
     .sort({ createdAt: -1 });
 
-    res.status(200).json({
-      success: true,
-      data: tasks,
-      count: tasks.length,
-    });
+    res.status(200).json(tasks);
   } catch (error) {
     next(error);
   }
