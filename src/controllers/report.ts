@@ -8,6 +8,7 @@ import Task, { ITask } from "../models/task";
 import LeaveRequest from "../models/LeaveRequest";
 import { sendEmail } from "../utils/sendEmail";
 import { getEmployeeReportEmail } from "./email";
+import Notification from "../models/notification";
 
 
 interface CreateEmployeeReportBody {
@@ -297,6 +298,11 @@ export const updateReportStatus = async (req: Request, res: Response) => {
     if (!report) {
       return res.status(404).json({ message: "Report not found" });
     }
+        await Notification.findOneAndUpdate(
+      { entityId: id }, 
+      { action: status },
+      { new: true }
+    );
 
     res.status(200).json({
       message:` Report ${status} successfully`,
@@ -360,13 +366,15 @@ export const createManagerReport = async (
       return next(createError(400, "Missing required fields"));
     }
 
-    const to24HourFormat = (timeStr: string) => {
-      const date = new Date(`1970-01-01 ${timeStr}`);
-      if (isNaN(date.getTime())) throw new Error(`Invalid time: ${timeStr}`);
-      const hours = date.getHours().toString().padStart(2, "0");
-      const minutes = date.getMinutes().toString().padStart(2, "0");
-      return` ${hours}:${minutes}`;
-    };
+const to24HourFormat = (timeStr: string) => {
+  const cleanStr = timeStr.trim();
+  const date = new Date(`1970-01-01T${cleanStr}`);
+  if (isNaN(date.getTime())) throw new Error(`Invalid time: ${timeStr}`);
+  const hours = date.getHours().toString().padStart(2, "0");
+  const minutes = date.getMinutes().toString().padStart(2, "0");
+  return `${hours}:${minutes}`;
+};
+
 
     const toMinutes = (timeStr: string) => {
       const parts = timeStr.split(":").map(Number);
@@ -437,6 +445,30 @@ export const createManagerReport = async (
     });
 
     await reportData.save();
+    const manager = await User.findById(id).lean();
+if (!manager) {
+  return next(createError(404, "Manager not found"));
+}
+
+// Find the admin (receiver)
+const admin = await User.findOne({ role: "admin" }).lean();
+if (!admin) {
+  return next(createError(404, "Admin not found"));
+}
+
+// Create notification
+const notification = new Notification({
+  senderId: manager._id,
+  receiverId: admin._id,
+  type: "dailyReport",
+  action: "submitted",
+  entityId: reportData._id,
+  description: `Manager ${manager.name} submitted a new report`,
+  createdAt: new Date(),
+  isRead: false,
+});
+
+await notification.save();
 
 
     res.status(201).json({

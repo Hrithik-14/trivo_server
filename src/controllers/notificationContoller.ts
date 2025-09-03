@@ -2,18 +2,17 @@ import { Request, Response } from "express";
 import Notification from "../models/notification";
 import { Server } from "socket.io";
 import { isValidObjectId } from "mongoose";
+import { User } from "../models/user";
 
-// Interface for notification payload
+
 interface CreateNotificationBody {
   senderId: string;
-  receiverId: string;
   type: string;
   action: string;
-  entityId: string;
-  description: string;
+  entityId?: string;
+  description?: string;
 }
 
-// Interface for params
 interface UserIdParams {
   userId: string;
 }
@@ -22,7 +21,7 @@ interface NotificationIdParams {
   id: string;
 }
 
-// Utility function for input validation
+
 const validateObjectId = (id: string, field: string): void => {
   if (!id || !isValidObjectId(id)) {
     throw new Error(`Invalid ${field} provided`);
@@ -38,41 +37,65 @@ const validateString = (
     throw new Error(`Invalid ${field} provided`);
   }
   if (maxLength && value.length > maxLength) {
-    throw new Error(
-      `${field} exceeds maximum length of ${maxLength} characters`
-    );
+    throw new Error(`${field} exceeds maximum length of ${maxLength} characters`);
   }
 };
 
+// Socket.io instance
 let ioInstance: Server;
-
-// Setter function to inject io from server.ts
 export const setIO = (io: Server) => {
   ioInstance = io;
 };
 
-
-
-
+// Controller
 export const createNotification = async (
   req: Request<{}, {}, CreateNotificationBody>,
   res: Response
 ) => {
   try {
-   
-    const { senderId, receiverId, type, action, entityId, description } = req.body;
+    const { senderId, type, action, entityId, description } = req.body;
 
-  
+    // Validate senderId
+    validateObjectId(senderId, "senderId");
+
+    // Find sender user
+    const sender = await User.findById(senderId).lean();
+    if (!sender) {
+      return res.status(404).json({ error: "Sender user not found" });
+    }
+
+    let receiverId: string | null = null;
+
+    if (sender.role === "employee") {
+      // employee → send to manager
+      if (!sender.managerId) {
+        return res
+          .status(400)
+          .json({ error: "Employee does not have a manager assigned" });
+      }
+      receiverId = sender.managerId.toString();
+    } else if (sender.role === "manager") {
+      // manager → send to admin
+      const admin = await User.findOne({ role: "admin" }).lean();
+      if (!admin) {
+        return res.status(404).json({ error: "Admin not found" });
+      }
+      receiverId = admin._id.toString();
+    } else {
+      return res
+        .status(400)
+        .json({ error: "Unsupported role for creating notification" });
+    }
 
     // Map default descriptions for each type
     const defaultDescriptions: Record<string, string> = {
-      message: "You have new message",
-      dailyReport: "You have new daily report",
-      leaveRequest: "You have new leave request",
+      message: "You have a new message",
+      dailyReport: "You have a new daily report",
+      leaveRequest: "You have a new leave request",
     };
 
-    // Use provided description if exists, otherwise default based on type
-    const finalDescription = description?.trim() || defaultDescriptions[type] || "";
+    const finalDescription =
+      description?.trim() || defaultDescriptions[type] || "";
 
     const notification = new Notification({
       senderId,
@@ -89,9 +112,13 @@ export const createNotification = async (
 
     const populatedNotification = await Notification.findById(notification._id)
       .populate("senderId", "name email")
+      .populate("receiverId", "name email role")
       .lean();
 
-    console.log("hi");
+    // Emit notification via socket.io (if available)
+    if (ioInstance && receiverId) {
+      ioInstance.to(receiverId).emit("notification", populatedNotification);
+    }
 
     res.status(201).json(populatedNotification);
   } catch (error: any) {
@@ -104,7 +131,6 @@ export const createNotification = async (
       .json({ error: error.message || "Failed to create notification" });
   }
 };
-
 // Fetch all notifications for a user with pagination
 export const getNotifications = async (
   req: Request<UserIdParams>,
@@ -148,7 +174,6 @@ export const getNotifications = async (
   }
 };
 
-// Mark one notification as read
 export const markAsRead = async (
   req: Request<NotificationIdParams>,
   res: Response

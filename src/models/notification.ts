@@ -27,12 +27,12 @@ const notificationSchema = new Schema<INotification>({
   },
   type: {
     type: String,
-    enum: ["message", "dailyReport", "leaveRequest"],
+    enum: ["dailyReport", "leaveRequest","Regularization"],
     required: true
   },
   action: {
     type: String,
-    enum: ["sent", "accepted", "rejected"],
+    enum: ["sent", "accepted", "rejected","submitted","create","Approve", "Reject"],
     required: true
   },
   entityId: {

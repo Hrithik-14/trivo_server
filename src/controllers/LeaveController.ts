@@ -7,6 +7,7 @@ import { User } from "../models/user";
 import { sendEmail } from "../utils/sendEmail";
 import CompOff from "../models/CompOff";
 import mongoose from "mongoose";
+import Notification from "../models/notification"
 
 export const createLeaveRequest = async (req: Request, res: Response) => {
 
@@ -172,6 +173,20 @@ export const acceptLeaveRequest = async (req: Request, res: Response) => {
       managerName: manager.name || "Manager",
     }),
   });
+ 
+  await Notification.findOneAndUpdate(
+  { entityId: id, receiverId: acceptRequest.employeeId }, 
+  { 
+    senderId: userId, 
+    receiverId: acceptRequest.employeeId, 
+    type: "leaveRequest", 
+    action: status, 
+    entityId: id, 
+    description: `Your leave request was ${status} by manager` 
+  },
+  { new: true, upsert: true }
+);
+
 
   res
     .status(200)
