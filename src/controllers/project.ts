@@ -629,11 +629,7 @@ export const projectProgressController = async (
     throw createError(404, "status not found");
   }
 
-  res.status(200).json({
-    message: "status updated successfully",
-    status: "success",
-    updatedStatus,
-  });
+  res.status(200).json(updatedStatus);
 };
 
 export const updateProject = async (
@@ -707,17 +703,17 @@ export const getProjectsByMember = async (req: Request, res: Response) => {
 
     const memberObjectId = new mongoose.Types.ObjectId(memberId);
 
-    const total = await Project.countDocuments({ members: memberObjectId });
+    const total = await Project.countDocuments({ 'members.user': memberObjectId });
     const ongoing = await Project.countDocuments({
-      members: memberObjectId,
+      'members.user': memberObjectId,
       status: "ongoing",
     });
     const completed = await Project.countDocuments({
-      members: memberObjectId,
+      'members.user': memberObjectId,
       status: "completed",
     });
-    const projects = await Project.find({ members: memberObjectId })
-      .populate("members")
+    const projects = await Project.find({ 'members.user': memberObjectId })
+      .populate("members.user")
       .populate("managerId")
       .sort({ createdAt: -1, _id: -1 })
       .skip(skip)
