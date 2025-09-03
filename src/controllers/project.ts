@@ -582,11 +582,11 @@ export const getProjectsByMember = async (req: Request, res: Response) => {
     const total = await Project.countDocuments({ 'members.user': memberObjectId });
     const ongoing = await Project.countDocuments({
       'members.user': memberObjectId,
-      status: "ongoing",
+      status: "Ongoing",
     });
     const completed = await Project.countDocuments({
       'members.user': memberObjectId,
-      status: "completed",
+      status: "Completed",
     });
     const projects = await Project.find({ 'members.user': memberObjectId })
       .populate("members.user")
