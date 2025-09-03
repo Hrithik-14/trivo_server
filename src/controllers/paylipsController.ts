@@ -19,7 +19,6 @@ export const createPayslips = async (req: Request, res: Response) => {
             incentive,
         } = req.body;
 
-        // Validate required fields
         if (!employeeCode || !employeeName || !email || !salaryDate || !basicSalary || !allowance) {
             return res.status(400).json({ message: "Missing required fields" });
         }
@@ -29,12 +28,10 @@ export const createPayslips = async (req: Request, res: Response) => {
             return res.status(404).json({ message: "Employee not found" });
         }
 
-        // Calculate total earnings, tax (10%), and net salary
         const totalEarnings = parseFloat(basicSalary) + parseFloat(allowance) + parseFloat(bonus) + parseFloat(incentive);
-        const tax = totalEarnings * 0.10; // 10% tax
+        const tax = totalEarnings * 0.10;
         const netSalary = totalEarnings - tax;
 
-        // Create payslip with calculated tax and net salary
         const payslipData = {
             employeeCode: employee._id,
             employeeName,
@@ -76,7 +73,7 @@ export const getPayslips = async (req: Request, res: Response) => {
 
         const payslipsWithImages = await Promise.all(
             payslips.map(async (payslip) => {
-                const user = await User.findOne({ employeeCode: payslip.employeeCode }).select("profileImage");
+                const user = await User.findOne({ _id: payslip.employeeCode }, "profileImage")
                 return {
                     ...payslip.toObject(),
                     profileImage: user?.profileImage || null,

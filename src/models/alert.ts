@@ -4,9 +4,7 @@ export interface IAlert extends Document {
   forUsers: Types.ObjectId[]; 
   message: string;
   createdAt: Date;
-  image:string
-  destination:string
-  name:string
+  image: string
 }
 
 const alertSchema = new Schema<IAlert>(

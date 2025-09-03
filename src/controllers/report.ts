@@ -41,6 +41,8 @@ export const createEmployReports = async (
     return next(createError(400, "No reports provided or reports is not an array"));
   }
 
+  
+
   try {
     const manager = await User.findById(id).populate("managerId", "name");
     if (!manager) {
@@ -204,6 +206,16 @@ export const createEmployReports = async (
         supportNeeded: supportNeeded || "",
       });
 
+      const attendance = await Attendance.findOne({
+  employeeId: id,
+  date: { $gte: reportDate, $lte: new Date(reportDate.getTime() + 86400000 - 1) },
+        status: { $ne: 'absent' }
+});
+
+if (!attendance) {
+  return next(createError(400, `No attendance found for ${reportDate.toDateString()}`));
+}
+
       const savedReport = await reportData.save();
       savedReports.push(savedReport);
     }
@@ -324,24 +336,52 @@ export const getMyReports = async (req: Request, res: Response) => {
     const limit = parseInt(req.query.limit as string) || 10;
     const skip = (page - 1) * limit;
 
-    const total = await Report.countDocuments({ submittedTo: userId });
-    const reports = await Report.find({ submittedTo: userId })
+    const query: any = { submittedTo: userId };
+
+    // Date filter (default = today)
+    if (req.query.date) {
+      const date = new Date(req.query.date as string);
+      const startOfDay = new Date(date);
+      startOfDay.setHours(0, 0, 0, 0);
+
+      const endOfDay = new Date(date);
+      endOfDay.setHours(23, 59, 59, 999);
+
+      query.createdAt = { $gte: startOfDay, $lte: endOfDay };
+    } else {
+      // default: today
+      const today = new Date();
+      const startOfDay = new Date(today);
+      startOfDay.setHours(0, 0, 0, 0);
+
+      const endOfDay = new Date(today);
+      endOfDay.setHours(23, 59, 59, 999);
+
+      query.createdAt = { $gte: startOfDay, $lte: endOfDay };
+    }
+
+    const total = await Report.countDocuments(query);
+
+    const reports = await Report.find(query)
       .populate("submittedBy", "name email")
       .populate("projectId", "name")
       .populate("completedTasks plannedTasks", "title")
-      .sort({ createdAt: -1, _id: -1 }).skip(skip).limit(limit)
+      .sort({ createdAt: -1, _id: -1 })
+      .skip(skip)
+      .limit(limit);
 
     res.status(200).json({
       count: reports.length,
       reports,
       page,
-      totalPages: Math.ceil(total / limit)
+      totalPages: Math.ceil(total / limit),
     });
   } catch (error) {
     console.error("Error fetching reports:", error);
     res.status(500).json({ message: "Server error" });
   }
 };
+
 
 
 
@@ -355,7 +395,7 @@ export const getReportStatus = async (req: Request, res: Response) => {
 
 export const createManagerReport = async (
   req: Request,
-  res: Response,
+  res: Response,  
   next: NextFunction
 ) => {
   const { id } = req.params; 
@@ -365,6 +405,7 @@ export const createManagerReport = async (
     if (!id || !startTime || !endTime || !description) {
       return next(createError(400, "Missing required fields"));
     }
+
 
 const to24HourFormat = (timeStr: string) => {
   const cleanStr = timeStr.trim();
@@ -418,6 +459,11 @@ const to24HourFormat = (timeStr: string) => {
     const todayEnd = new Date();
     todayEnd.setHours(23, 59, 59, 999);
 
+    const admin = await User.findOne({ role: "admin" }).lean();
+if (!admin) {
+  return next(createError(404, "Admin not found"));
+}
+
     const existingReport = await Report.findOne({
       submittedBy: id,
       date: { $gte: todayStart, $lte: todayEnd },
@@ -436,6 +482,7 @@ const to24HourFormat = (timeStr: string) => {
 
     const reportData = new Report({
       submittedBy: id,
+      submittedTo: admin?._id,
       role: "manager",
       date: new Date(),
       startTime: formattedStart,
@@ -450,13 +497,7 @@ if (!manager) {
   return next(createError(404, "Manager not found"));
 }
 
-// Find the admin (receiver)
-const admin = await User.findOne({ role: "admin" }).lean();
-if (!admin) {
-  return next(createError(404, "Admin not found"));
-}
 
-// Create notification
 const notification = new Notification({
   senderId: manager._id,
   receiverId: admin._id,
@@ -497,9 +538,6 @@ export const getReportsByProject = async (
 
     const reports = await Report.find({ projectId, submittedBy });
 
-    if (!reports || reports.length === 0) {
-      throw createError(404, "No reports found for this project");
-    }
 
     res.status(200).json({
       message: "Reports fetched successfully",

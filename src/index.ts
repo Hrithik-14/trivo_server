@@ -21,9 +21,7 @@ import { socketHandler } from "./socket";
 import reportRoutes from "./routes/reportRoutes";
 import leaveRoutes from "./routes/leaveRoutes";
 import mailRoutes from "./routes/mailRoutes";
-import alertRoutes from "./routes/alertRoutes"
-import cron from "node-cron";
-import { checkYearlyCompletion } from "./controllers/alertController";
+import alertRoutes from "./routes/alertRoutes";
 
 
 dotenv.config();
@@ -54,17 +52,17 @@ app.use('/api', taskRoutes);
 app.use('/api', notificationRoutes);
 app.use('/api', leaveRoutes)
 app.use('/api', mailRoutes)
-app.use('/api',alertRoutes)
+app.use('/api', alertRoutes)
 
 
 app.use(errorMiddleware);
 
-cron.schedule("0 0 * * *", () => {
-  console.log("⏰ Running yearly completion check...");
-  checkYearlyCompletion({} as any, {} as any, (err: any) => {
-    if (err) console.error(err);
-  });
-});
+// cron.schedule("0 0 * * *", () => {
+//   console.log("⏰ Running yearly completion check...");
+//   checkYearlyCompletion({} as any, {} as any, (err: any) => {
+//     if (err) console.error(err);
+//   });
+// });
 const server = http.createServer(app)
 
 const io = new Server(server, {

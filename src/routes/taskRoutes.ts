@@ -10,7 +10,7 @@ import { errorHandling } from '../helper/errorMiddleware';
 
 const router = express.Router();
 
-router.get('/project/:projectId/user/:userId/tasks', errorHandling(getTasksByProjectAndUser));
+router.get('/project/:projectId/user/:memberId/tasks', errorHandling(getTasksByProjectAndUser));
 router.get('/project/:projectId/tasks', errorHandling(getTasksByProject));
 router.post('/tasks', errorHandling(addTaskForUser));
 router.delete('/tasks/:taskId', errorHandling(deleteTask));

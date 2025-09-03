@@ -14,11 +14,7 @@ export const getAlerts = async (req: Request, res: Response, next: NextFunction)
       });
     }
 
-    
-    const objectId = new mongoose.Types.ObjectId(userId);
-
-    const alerts = await Alert.find({ forUsers: { $in: [objectId] } })
-      .sort({ createdAt: -1 });
+const alerts = await Alert.find({ forUsers: { $in: [userId] } }).sort({ createdAt: -1 });
 
     res.status(200).json({
       success: true,
@@ -52,63 +48,52 @@ export const markAlertAsRead = async (req: Request, res: Response, next: NextFun
   }
 };
 
-
-
-export const checkYearlyCompletion = async (
-  req: Request,
-  res: Response,
-  next: NextFunction
-) => {
+// Yearly Completion Alerts
+export const checkYearlyCompletion = async (req: Request, res: Response, next: NextFunction) => {
   try {
     
     const today = new Date();
+    const users = await User.find();
 
-    
-    const completedUsers = await User.find({
-      createdAt: {
-        $lte: new Date(today.getFullYear() - 1, today.getMonth(), today.getDate()),
-      },
-    });
+    const alertsToCreate: { forUsers: Types.ObjectId[], message: string }[] = [];
 
-    if (completedUsers.length > 0) {
-      console.log(`🎉 ${completedUsers.length} user(s) completed 1 year!`);
+    for (const user of users) {
+      const joinDate = new Date(user.createdAt);
+      const oneYearAfterJoin = new Date(joinDate);
+      oneYearAfterJoin.setFullYear(joinDate.getFullYear() + 1);
 
-      for (const user of completedUsers) {
-        console.log(`✅ User ${user._id} (${user.email}) completed 1 year.`);
-
-        // Save alert for this user
-        await Alert.create({
-          forUser: user._id,
-          message: `🎉 Congratulations ${user.name}, you have completed 1 year with us!`,
-          createdAt: new Date(),
+      if (
+        today.getDate() === oneYearAfterJoin.getDate() &&
+        today.getMonth() === oneYearAfterJoin.getMonth() &&
+        today.getFullYear() === oneYearAfterJoin.getFullYear()
+      ) {
+        alertsToCreate.push({
+          forUsers: [user._id],
+          message: `🎉 Congratulations ${user.name}, you’ve completed 1 year with us!`,
         });
       }
-    } else {
-      console.log("ℹ️ No users completed 1 year today.");
     }
 
-    if (res) {
-      return res.status(200).json({ success: true, completedUsers });
+    if (alertsToCreate.length > 0) {
+      await Alert.insertMany(alertsToCreate);
     }
+
+    res.status(200).json({
+      success: true,
+      message: "Yearly completion alerts created",
+    });
   } catch (error) {
-    console.error("❌ Error in yearly completion check:", error);
-    if (next) next(error);
+    next(error);
   }
 };
 
-
-
-export const getBirthdayAlerts = async (
-  req: Request,
-  res: Response,
-  next: NextFunction
-) => {
+// Birthday Alerts
+export const getBirthdayAlerts = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const today = new Date();
     const todayMonth = today.getMonth() + 1;
     const todayDate = today.getDate();
 
-    // Find birthday users today
     const birthdayUsers = await User.find({
       $expr: {
         $and: [
@@ -122,28 +107,99 @@ export const getBirthdayAlerts = async (
       return res.status(200).json({ message: "No birthdays today 🎂" });
     }
 
-    // Get all users
     const allUsers = await User.find();
-
-    let alerts: any[] = [];
 
     for (const bUser of birthdayUsers) {
       const otherUsers = allUsers
         .filter((u) => !u._id.equals(bUser._id))
-        .map((u) => u._id as Types.ObjectId);
+        .map((u) => u._id);
 
       if (otherUsers.length > 0) {
-        const alert = await Alert.create({
+        await Alert.create({
           forUsers: otherUsers,
           message: `🎉 Today is ${bUser.name}'s birthday!`,
         });
-        alerts.push(alert);
       }
     }
 
+    res.status(200).json({
+      success: true,
+      message: "Birthday alerts created",
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+
+
+export const getTodayBirthdays = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const today = new Date();
+    const todayMonth = today.getMonth() + 1; // months are 0-based
+    const todayDate = today.getDate();
+
+    // ✅ Get all users whose birthday is today
+    const birthdayUsers = await User.find({
+      $expr: {
+        $and: [
+          { $eq: [{ $dayOfMonth: "$dateOfBirth" }, todayDate] },
+          { $eq: [{ $month: "$dateOfBirth" }, todayMonth] },
+        ],
+      },
+    });
+
+    if (!birthdayUsers.length) {
+      return res.status(200).json({
+        success: true,
+        message: "No birthdays today 🎂",
+        users: [],
+      });
+    }
+
     return res.status(200).json({
-      message: "Birthday alerts fetched ✅",
-      alerts,
+      success: true,
+      message: "Today's birthday users",
+      users: birthdayUsers,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+
+
+export const getTodayYearlyAlerts = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const today = new Date();
+    const todayMonth = today.getMonth() + 1;
+    const todayDate = today.getDate();
+
+    const yearlyUsers = await User.find({
+      $expr: {
+        $and: [
+          { $eq: [{ $dayOfMonth: "$joiningDate" }, todayDate] },
+          { $eq: [{ $month: "$joiningDate" }, todayMonth] },
+        ],
+      },
+    });
+
+    if (!yearlyUsers.length) {
+      return res.status(200).json({
+        success: true,
+        message: "No yearly anniversaries today 🎊",
+        users: [],
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Today's yearly anniversaries 🎉",
+      users: yearlyUsers,
     });
   } catch (error) {
     next(error);

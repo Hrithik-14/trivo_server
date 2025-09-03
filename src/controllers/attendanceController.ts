@@ -221,8 +221,6 @@ try {
 }
 
 
-
-
 export const getAttendneceHistory = async (req: Request, res: Response) => {
   const { userId } = req.params
   const { filter } = req.query
@@ -415,7 +413,7 @@ export const markHolidays = async(req: Request, res: Response) => {
   if ( !holiday || !description ) throw createError(404, 'holiday and description not found')
   
   const existingholiday = await Holiday.find({ date: holiday })
-  if (existingholiday) throw createError(409, 'Already marked as a Holiday')
+  if (existingholiday.length > 0) throw createError(409, 'Already marked as a Holiday')
 
   const attendance = new Holiday({
     date: holiday,
