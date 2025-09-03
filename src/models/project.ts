@@ -12,8 +12,8 @@ export interface IProject extends Document {
   startDate: Date;
   endDate?: Date;
   isActive: boolean;
-  managerId: mongoose.Types.ObjectId; // Changed to array
-  status: 'ongoing' | 'completed';
+  managerId: mongoose.Types.ObjectId;
+  status: 'Ongoing' | 'Completed';
   members: Member[];
   tasks: mongoose.Types.ObjectId[];
   client: string;
@@ -50,8 +50,8 @@ const projectSchema: Schema<IProject> = new Schema<IProject>({
     },
   status: {
     type: String,
-    enum: ['ongoing', 'completed'],
-    default: 'ongoing',
+    enum: ['Ongoing', 'Completed'],
+    default: 'Ongoing',
   },
   members: [
 {    
