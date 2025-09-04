@@ -88,13 +88,13 @@ const otherUsers = await User.find({ _id: { $ne: user._id } }).select("_id");
 
 try {
   const alert = await Alert.create({
+    image: user.profileImage,
     message: `🎉 Welcome ${user.name} to TRIVO Solutions!`,
-    forUsers: otherUsers.map((u) => u._id), // array of user IDs
+    forUsers: otherUsers.map((u) => u._id),
   });
 
-  console.log("✅ Alert Created:", alert);
 } catch (err) {
-  console.error("❌ Alert creation failed:", err);
+  console.error("Alert creation failed:", err);
 }
 
   

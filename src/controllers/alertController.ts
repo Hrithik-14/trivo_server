@@ -51,6 +51,7 @@ export const markAlertAsRead = async (req: Request, res: Response, next: NextFun
 // Yearly Completion Alerts
 export const checkYearlyCompletion = async (req: Request, res: Response, next: NextFunction) => {
   try {
+    
     const today = new Date();
     const users = await User.find();
 

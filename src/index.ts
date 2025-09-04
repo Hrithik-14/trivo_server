@@ -57,7 +57,12 @@ app.use('/api', alertRoutes)
 
 app.use(errorMiddleware);
 
-
+// cron.schedule("0 0 * * *", () => {
+//   console.log("⏰ Running yearly completion check...");
+//   checkYearlyCompletion({} as any, {} as any, (err: any) => {
+//     if (err) console.error(err);
+//   });
+// });
 const server = http.createServer(app)
 
 const io = new Server(server, {
