@@ -181,6 +181,7 @@ export const loginUser = async (
       email: user.email,
       employeeCode: user.employeeCode,
       role: user.role,
+      profileImage: user.profileImage
     },
   });
 };
