@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import Project, { IProject } from "../models/project";
-import mongoose from "mongoose";
+import mongoose, { Document, Types } from "mongoose";
 import { User } from "../models/user";
 import Task, { ITask } from "../models/task";
 import { createError } from "../helper/errorMiddleware";
@@ -30,7 +30,6 @@ interface AddManagerProjectBody {
 
 
 
-import { Document, Types } from "mongoose";
 
 export interface IUser extends Document {
   _id: Types.ObjectId;
@@ -562,7 +561,7 @@ export const ongoingManagerProject = async (req: Request, res: Response) => {
 export const getMemeberproject = async (req: Request, res: Response) => {
   try {
     const { memberId } = req.params;
-    const projects = await Project.find({ 'members.user': memberId  });
+    const projects = await Project.find({ 'members.user': memberId, status: 'Ongoing' }).sort({ startDate: -1 });
 
     res.status(200).json(projects);
   } catch (err: any) {

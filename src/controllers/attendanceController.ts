@@ -34,7 +34,7 @@ export const markAttendance = async (req: Request<{}, {}, MarkAttendanceBody>, r
     today.setHours(0, 0, 0, 0);
     const day = today.getDay()
 
-    const now = new Date();
+    const now = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" }));
     const timeStr = now.toTimeString().split(' ')[0];
 
     let attendance = await Attendance.findOne({
