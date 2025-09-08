@@ -4,6 +4,7 @@ import dotenv from "dotenv";
 import path from "path";
 import http from 'http'
 import { Server } from "socket.io";
+import cron from "node-cron";
 
 
 import connectDB from "./configs/db";
@@ -22,6 +23,7 @@ import reportRoutes from "./routes/reportRoutes";
 import leaveRoutes from "./routes/leaveRoutes";
 import mailRoutes from "./routes/mailRoutes";
 import alertRoutes from "./routes/alertRoutes";
+import { checkYearlyCompletion, getBirthdayAlerts } from "./controllers/alertController";
 
 
 dotenv.config();
@@ -57,12 +59,31 @@ app.use('/api', alertRoutes)
 
 app.use(errorMiddleware);
 
-// cron.schedule("0 0 * * *", () => {
-//   console.log("⏰ Running yearly completion check...");
-//   checkYearlyCompletion({} as any, {} as any, (err: any) => {
-//     if (err) console.error(err);
-//   });
-// });
+cron.schedule("28 10 * * *", async () => {
+    try {
+        await getBirthdayAlerts(
+        {} as any,
+        { status: () => ({ json: () => {} }) } as any,
+        (err: any) => { if (err) console.error(err); }
+        );
+    } catch (error) {
+        console.error("Error running birthday cron:", error);
+    }
+});
+
+cron.schedule("28 10 * * *", async () => {
+    try {
+        await checkYearlyCompletion(
+        {} as any,
+        { status: () => ({ json: () => {} }) } as any,
+        (err: any) => { if (err) console.error(err); }
+        );
+    } catch (error) {
+        console.error("Error running yearly cron:", error);
+    }
+});
+
+
 const server = http.createServer(app)
 
 const io = new Server(server, {
