@@ -353,8 +353,8 @@ export const getAllProject = async (
   const skip = (page - 1) * limit;
 
   const total = await Project.countDocuments();
-  const ongoing = await Project.countDocuments({ status: "ongoing" });
-  const completed = await Project.countDocuments({ status: "completed" });
+  const ongoing = await Project.countDocuments({ status: "Ongoing" });
+  const completed = await Project.countDocuments({ status: "Completed" });
 
   const project = await Project.find()
     .populate("members.user", "name")
@@ -553,7 +553,7 @@ export const updateProject = async (
 export const ongoingManagerProject = async (req: Request, res: Response) => {
   const { id } = req.params;
   if (!id) return createError(404, "Not Found");
-  const projects = await Project.find({ managerId: id, status: "ongoing" });
+  const projects = await Project.find({ managerId: id, status: "Ongoing" });
 
   res.json(projects);
 };
