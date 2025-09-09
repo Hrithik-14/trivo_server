@@ -218,9 +218,15 @@ export const getSpecificDay = async (req: Request, res:Response) => {
     const { date } = req.query
     const userId = req.user?.id
 
-    const start = new Date(date as string)
-    const end = new Date(date as string)
-    end.setDate(end.getDate() + 1)
+  const start = new Date(
+    new Date(date as string).toLocaleString("en-US", { timeZone: "Asia/Kolkata" })
+  );
+  start.setHours(0, 0, 0, 0);
+
+  const end = new Date(
+    new Date(date as string).toLocaleString("en-US", { timeZone: "Asia/Kolkata" })
+  );
+  end.setHours(23, 59, 59, 999);
 
     const des = await LeaveRequest.findOne({ employeeId: userId, date: { $gte: start, $lt: end }, status: 'Approve'  })
     const dayStatus = await Attendance.findOne({ date: { $gte: start, $lt: end }, employeeId: userId })
