@@ -355,6 +355,7 @@ export const getAllEmployeeAttendance = async (req: Request, res: Response) => {
 
     const allUsers = await Attendance.find(attendanceFilter)
       .populate("employeeId", "name employeeCode profileImage")
+      .sort({ date: -1 })
       .lean();
 
     let leaveFilter: any = { status: "Approve" };

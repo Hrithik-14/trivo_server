@@ -206,10 +206,9 @@ export const getLeaveRequest = async (req: Request, res: Response) => {
 
 export const getMyRequest = async (req: Request, res: Response) => {
   const userId = req.user?.id;
-  const request = await LeaveRequest.find({
-    employeeId: userId,
-    leaveType: { $ne: "Regularization" },
-  }).populate("employeeId", "name profileImage");
+  const request = await LeaveRequest.find({ employeeId: userId, leaveType: { $ne: "Regularization" }, })
+    .populate("employeeId", "name profileImage")
+    .sort({ createdAt: -1 })
   res.json(request);
 };
 
@@ -237,7 +236,8 @@ export const getRegularizationRequest = async (req: Request, res: Response) => {
   const requesst = await LeaveRequest.find({
     requestTo: userid,
     leaveType: "Regularization",
-  }).populate("employeeId", "name profileImage");
+  }).populate("employeeId", "name profileImage")
+  .sort({ createdAt: -1 })
   res.json(requesst);
 };
 
@@ -246,7 +246,7 @@ export const getMyRegularization = async (req: Request, res: Response) => {
   const requesst = await LeaveRequest.find({
     employeeId: userid,
     leaveType: "Regularization",
-  });
+  }).sort({ createdAt: -1 })
   res.json(requesst);
 };
 
