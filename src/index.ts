@@ -69,7 +69,7 @@ cron.schedule("28 10 * * *", async () => {
     } catch (error) {
         console.error("Error running birthday cron:", error);
     }
-});
+}, { timezone: "Asia/Kolkata", });
 
 cron.schedule("28 10 * * *", async () => {
     try {
@@ -81,7 +81,7 @@ cron.schedule("28 10 * * *", async () => {
     } catch (error) {
         console.error("Error running yearly cron:", error);
     }
-});
+}, { timezone: "Asia/Kolkata", });
 
 
 const server = http.createServer(app)
