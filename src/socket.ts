@@ -88,6 +88,17 @@ export const socketHandler = (io: Server) => {
         validateObjectId(contactId, "contactId");
 
         const roomId = [userId, contactId].sort().join("-");
+        
+        const currentRooms = socketRooms.get(socket.id);
+        if (currentRooms) {
+          currentRooms.forEach(room => {
+            if (room.includes("-") && room !== roomId) {
+              socket.leave(room);
+              currentRooms.delete(room);
+            }
+          });
+        }
+        
         socket.join(roomId);
         
         if (!socketRooms.has(socket.id)) {
@@ -96,10 +107,50 @@ export const socketHandler = (io: Server) => {
         socketRooms.get(socket.id)!.add(roomId);
 
         console.log(`User ${socket.id} joined direct chat room: ${roomId}`);
+        socket.emit("joinDirectChatSuccess", { roomId });
+        
       } catch (err: any) {
         console.error(`Join direct chat error for ${socket.id}:`, err.message);
         socket.emit("joinDirectChatError", { error: err.message });
       }
+    });
+
+
+    socket.on("leaveDirectChat", (payload: JoinDirectChatPayload) => {
+  try {
+    const { userId, contactId } = payload;
+    validateObjectId(userId, "userId");
+    validateObjectId(contactId, "contactId");
+
+    const roomId = [userId, contactId].sort().join("-");
+    
+    socket.leave(roomId);
+    
+    const currentRooms = socketRooms.get(socket.id);
+    if (currentRooms) {
+      currentRooms.delete(roomId);
+    }
+
+    console.log(`User ${socket.id} left direct chat room: ${roomId}`);
+    socket.emit("leaveDirectChatSuccess", { roomId });
+    
+  } catch (err: any) {
+    console.error(`Leave direct chat error for ${socket.id}:`, err.message);
+    socket.emit("leaveDirectChatError", { error: err.message });
+  }
+});
+
+    socket.on("leaveAllRooms", () => {
+      const currentRooms = socketRooms.get(socket.id);
+      if (currentRooms) {
+        currentRooms.forEach(room => {
+          if (room.includes("-") || (room.length === 24 && !userSockets.has(room))) {
+            socket.leave(room);
+            currentRooms.delete(room);
+          }
+        });
+      }
+      console.log(`User ${socket.id} left all non-personal rooms`);
     });
 
     socket.on("sendDirectMessage", async (payload: SendDirectMessagePayload) => {
@@ -127,13 +178,26 @@ export const socketHandler = (io: Server) => {
           throw new Error("Failed to retrieve populated message");
         }
 
-        console.log(`Direct message saved and populated:`, populatedMsg);
+        console.log(`Direct message saved and populated:`, populatedMsg._id);
 
+        const roomId = [senderId, recieverId].sort().join("-");
+        
+        io.to(roomId).emit("newDirectMessage", populatedMsg);
+        console.log(`Emitted to direct chat room: ${roomId}`);
+        
         io.to(senderId).emit("newDirectMessage", populatedMsg);
         io.to(recieverId).emit("newDirectMessage", populatedMsg);
+        console.log(`Emitted to personal rooms: ${senderId}, ${recieverId}`);
         
-        const roomId = [senderId, recieverId].sort().join("-");
-        io.to(roomId).emit("newDirectMessage", populatedMsg);
+        const senderSocketId = userSockets.get(senderId);
+        const receiverSocketId = userSockets.get(recieverId);
+        
+        if (senderSocketId) {
+          io.to(senderSocketId).emit("newDirectMessage", populatedMsg);
+        }
+        if (receiverSocketId) {
+          io.to(receiverSocketId).emit("newDirectMessage", populatedMsg);
+        }
 
         console.log(`Direct message sent from ${senderId} to ${recieverId}`);
         
@@ -221,7 +285,6 @@ export const socketHandler = (io: Server) => {
         socket.emit("messageError", { error: err.message });
       }
     });
-
 
     socket.on("joinNotificationRoom", (payload: JoinNotificationRoomPayload) => {
       try {
