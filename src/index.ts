@@ -31,6 +31,19 @@ connectDB();
 
 const app: Application = express();
 const port = process.env.PORT || 3001   ;
+const server = http.createServer(app)
+
+const io = new Server(server, {
+    cors: {
+        origin: process.env.FRONTEND_URL,
+        methods: ["GET", "POST"],
+        credentials: true,
+    }
+})
+
+app.set('io', io);
+
+socketHandler(io)
 
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 app.use(express.json())
@@ -84,16 +97,7 @@ cron.schedule("28 10 * * *", async () => {
 }, { timezone: "Asia/Kolkata", });
 
 
-const server = http.createServer(app)
 
-const io = new Server(server, {
-    cors: {
-        origin: process.env.FRONTEND_URL,
-        credentials: true,
-    }
-})
-
-socketHandler(io)
 
 
 server.listen(port, () => {
