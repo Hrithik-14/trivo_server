@@ -311,7 +311,6 @@ const markAbsent = async () => {
   const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1)
 
 
-
   const users = await User.find({ role: { $ne: 'admin' } })
   for (let user of users) {
     const attendance = await Attendance.findOne({ employeeId: user._id, date: { $gte: startOfDay, $lt: endOfDay } })
